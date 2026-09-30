@@ -32,6 +32,7 @@ import { after, before, describe, it } from 'node:test';
 
 import { Goodmem } from '@pairsystems/goodmem';
 import { generateText, stepCountIs, streamText } from 'ai';
+import { MockLanguageModelV3 } from 'ai/test';
 
 import {
   addMemories,
@@ -707,6 +708,60 @@ describe('live', { skip }, () => {
     assert.equal(model.doGenerateCalls.length, 1);
     assert.ok(!systemText(model.doGenerateCalls[0].prompt).includes(TEXT_CANARY));
     assert.match(logs.lines[0], /Searching GoodMem timed out after 1 ms: .*raise retrievalTimeoutMs/);
+  });
+
+  // ------------------------------------------------------ automatic saving --
+
+  it('automatic saving: facts from the extraction model land in GoodMem with the scope and come back next turn', async () => {
+    const scope = { userId: `u-save-${TOKEN.toLowerCase()}` };
+    const codeWord = `SAVE-${TOKEN}`;
+    const fact = `User's favourite code word is ${codeWord}.`;
+    const extractionCalls: any[] = [];
+    // A scripted extraction model: no LLM credentials are used by this suite.
+    const extractor = new MockLanguageModelV3({
+      doGenerate: (async (call: any) => {
+        extractionCalls.push(call);
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ facts: [fact] }) }],
+          finishReason: { unified: 'stop', raw: undefined },
+          usage: { inputTokens: { total: 30, noCache: 30, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 12, text: 12, reasoning: 0 } },
+          warnings: [],
+        };
+      }) as any,
+    });
+    const chat = scriptedModel(() => textResult('Noted.'));
+    const first = await generateText({
+      model: withGoodmem(chat, { ...mainConfig, scope, retrievalTimeoutMs: 90_000, addMemory: 'always', extractionModel: extractor }),
+      prompt: `By the way, my favourite code word is ${codeWord}.`,
+    });
+    assert.equal(first.text, 'Noted.');
+    assert.equal(extractionCalls.length, 1);
+    const extractionPrompt = JSON.stringify(extractionCalls[0].prompt);
+    assert.doesNotMatch(extractionPrompt, /Relevant memories/, 'memories were injected into the extraction call');
+    assert.ok(extractionPrompt.includes(codeWord));
+
+    const saved = (first.providerMetadata?.goodmem as any).saved;
+    assert.deepEqual(saved.facts, [fact]);
+    assert.equal(saved.memoryIds.length, 1);
+    assert.deepEqual(saved.usage, { inputTokens: 30, outputTokens: 12, totalTokens: 42 });
+    const stored = await admin.memories.get(saved.memoryIds[0]);
+    assert.equal(stored.spaceId, mainSpaceId);
+    assert.deepEqual(stored.metadata, scope);
+    assert.equal(await waitCompleted(saved.memoryIds[0]), 'COMPLETED');
+
+    // The next turn, with saving off, finds the fact through the same scope.
+    const next = scriptedModel(() => textResult('It is ' + codeWord));
+    const second = await generateText({
+      model: withGoodmem(next, { ...mainConfig, scope, retrievalTimeoutMs: 90_000 }),
+      prompt: `What is my favourite code word ${codeWord}?`,
+    });
+    assert.ok(systemText(next.doGenerateCalls[0].prompt).includes(fact), 'the saved fact was not injected on the next turn');
+    assert.ok((second.providerMetadata?.goodmem as any).memoryIds.includes(saved.memoryIds[0]));
+    assert.equal((second.providerMetadata?.goodmem as any).saved, undefined);
+
+    // Another user's scope does not see it.
+    const other = await searchMemories(`favourite code word ${codeWord}`, { ...mainConfig, scope: { userId: 'someone-else' } });
+    assert.ok(!other.results.some((r) => r.memoryId === saved.memoryIds[0]));
   });
 
   // --------------------------------------------------------------- secrets --
