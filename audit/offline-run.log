@@ -1,798 +1,809 @@
 # Offline suite, environment cleared (TAP)
-# commit 7bf6af4, 2026-09-30T15:54:43Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
+# commit 948d88f, 2026-09-30T16:06:13Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
 
 $ env -u GOODMEM_API_KEY -u GOODMEM_BASE_URL -u GOODMEM_TEST_EMBEDDER_ID npx tsx --test --test-reporter=tap tests/goodmem_test.ts
 TAP version 13
-# (node:669095) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+# (node:678441) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
 # (Use `node --trace-warnings ...` to show where the warning was created)
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at https://goodmem.test (ECONNREFUSED). Check baseUrl and that the server is running.
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 503: server says 503
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 500: server says 500
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 429: server says 429
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 408: server says 408
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: Expected NDJSON response body from POST /v1/memories:retrieve but received an empty stream
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at https://goodmem.test (ECONNREFUSED). Check baseUrl and that the server is running.
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 503: server says 503
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 500: server says 500
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 429: server says 429
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 408: server says 408
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: Expected NDJSON response body from POST /v1/memories:retrieve but received an empty stream
 # Subtest: fixtures
     # Subtest: are bytes captured from a live server, with their recorded status
     ok 1 - are bytes captured from a live server, with their recorded status
       ---
-      duration_ms: 0.540467
+      duration_ms: 0.509628
       ...
     # Subtest: carry no credential
     ok 2 - carry no credential
       ---
-      duration_ms: 0.478629
+      duration_ms: 0.433043
       ...
     1..2
 ok 1 - fixtures
   ---
-  duration_ms: 1.372048
+  duration_ms: 1.273029
   type: 'suite'
   ...
 # Subtest: configuration
     # Subtest: requires apiKey, baseUrl and exactly one space option, naming what is missing
     ok 1 - requires apiKey, baseUrl and exactly one space option, naming what is missing
       ---
-      duration_ms: 0.942982
+      duration_ms: 0.889961
       ...
     # Subtest: rejects unknown options instead of ignoring a typo
     ok 2 - rejects unknown options instead of ignoring a typo
       ---
-      duration_ms: 0.180754
+      duration_ms: 0.178289
       ...
     # Subtest: bounds every request: timeoutMs must be a positive number and cannot be turned off
     ok 3 - bounds every request: timeoutMs must be a positive number and cannot be turned off
       ---
-      duration_ms: 0.187145
+      duration_ms: 0.193778
       ...
     # Subtest: refuses minScore without a reranker, explaining why
     ok 4 - refuses minScore without a reranker, explaining why
       ---
-      duration_ms: 0.141849
+      duration_ms: 0.14233
       ...
     # Subtest: validates scope field names and values up front
     ok 5 - validates scope field names and values up front
       ---
-      duration_ms: 0.291344
+      duration_ms: 0.284591
       ...
     # Subtest: withGoodmem refuses a model id string and an unknown position
     ok 6 - withGoodmem refuses a model id string and an unknown position
       ---
-      duration_ms: 7.726433
+      duration_ms: 7.18413
       ...
     1..6
 ok 2 - configuration
   ---
-  duration_ms: 9.671238
+  duration_ms: 9.119739
   type: 'suite'
   ...
 # Subtest: environment fallback (GOODMEM_API_KEY, GOODMEM_BASE_URL)
     # Subtest: uses both variables when the options are omitted
     ok 1 - uses both variables when the options are omitted
       ---
-      duration_ms: 7.1091
+      duration_ms: 7.830248
       ...
     # Subtest: an explicit option always wins over the environment
     ok 2 - an explicit option always wins over the environment
       ---
-      duration_ms: 0.82119
+      duration_ms: 0.824947
       ...
     # Subtest: each option falls back on its own, and an explicit empty value never does
     ok 3 - each option falls back on its own, and an explicit empty value never does
       ---
-      duration_ms: 0.678038
+      duration_ms: 0.996975
       ...
     # Subtest: neither option nor variable: the error names the option, the variable and where to get one
     ok 4 - neither option nor variable: the error names the option, the variable and where to get one
       ---
-      duration_ms: 0.328093
+      duration_ms: 0.331109
       ...
     # Subtest: a malformed GOODMEM_BASE_URL is reported as coming from the environment
     ok 5 - a malformed GOODMEM_BASE_URL is reported as coming from the environment
       ---
-      duration_ms: 0.134044
+      duration_ms: 0.123424
       ...
     # Subtest: a key from the environment never appears in tools, wrapped models, results or errors
     ok 6 - a key from the environment never appears in tools, wrapped models, results or errors
       ---
-      duration_ms: 3.590593
+      duration_ms: 4.108336
       ...
     # Subtest: runtimes without a Node environment, or that refuse access to it, get no fallback
     ok 7 - runtimes without a Node environment, or that refuse access to it, get no fallback
       ---
-      duration_ms: 1.277057
+      duration_ms: 1.422383
       ...
     # Subtest: only src/env.ts reads the environment, and only these two variables
     ok 8 - only src/env.ts reads the environment, and only these two variables
       ---
-      duration_ms: 0.418635
+      duration_ms: 0.448723
       ...
     1..8
 ok 3 - environment fallback (GOODMEM_API_KEY, GOODMEM_BASE_URL)
   ---
-  duration_ms: 14.562072
+  duration_ms: 16.347983
   type: 'suite'
   ...
 # Subtest: middleware when GoodMem is unavailable (skipMemoryOnError, retrievalTimeoutMs)
     # Subtest: an unreachable server: the call goes ahead, told memories may be missing, and is flagged
     ok 1 - an unreachable server: the call goes ahead, told memories may be missing, and is flagged
       ---
-      duration_ms: 5.039467
+      duration_ms: 5.129036
       ...
     # Subtest: HTTP 503 is an availability failure: the call goes ahead, flagged with the status
     ok 2 - HTTP 503 is an availability failure: the call goes ahead, flagged with the status
       ---
-      duration_ms: 1.272908
+      duration_ms: 1.321491
       ...
     # Subtest: HTTP 500 is an availability failure: the call goes ahead, flagged with the status
     ok 3 - HTTP 500 is an availability failure: the call goes ahead, flagged with the status
       ---
-      duration_ms: 2.821742
+      duration_ms: 1.044995
       ...
     # Subtest: HTTP 429 is an availability failure: the call goes ahead, flagged with the status
     ok 4 - HTTP 429 is an availability failure: the call goes ahead, flagged with the status
       ---
-      duration_ms: 1.039896
+      duration_ms: 1.04214
       ...
     # Subtest: HTTP 408 is an availability failure: the call goes ahead, flagged with the status
     ok 5 - HTTP 408 is an availability failure: the call goes ahead, flagged with the status
       ---
-      duration_ms: 0.891013
+      duration_ms: 0.969452
       ...
     # Subtest: a broken response (a 200 with no events) is an availability failure too
     ok 6 - a broken response (a 200 with no events) is an availability failure too
       ---
-      duration_ms: 1.083839
+      duration_ms: 1.146448
       ...
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem timed out after 100 ms: the GoodMem server at https://goodmem.test did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem timed out after 100 ms: the GoodMem server at https://goodmem.test did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
     # Subtest: a lookup slower than retrievalTimeoutMs is cut off and the call goes ahead, flagged as a timeout
     ok 7 - a lookup slower than retrievalTimeoutMs is cut off and the call goes ahead, flagged as a timeout
       ---
-      duration_ms: 102.608087
+      duration_ms: 102.60974
       ...
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Looking up the configured space timed out after 100 ms: the GoodMem server at https://goodmem.test did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Looking up the configured space timed out after 100 ms: the GoodMem server at https://goodmem.test did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
     # Subtest: retrievalTimeoutMs bounds the whole lookup, including finding a named space
     ok 8 - retrievalTimeoutMs bounds the whole lookup, including finding a named space
       ---
-      duration_ms: 102.566088
+      duration_ms: 103.03107
       ...
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at https://goodmem.test (ECONNREFUSED). Check baseUrl and that the server is running.
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at https://goodmem.test (ECONNREFUSED). Check baseUrl and that the server is running.
     # Subtest: retrievalTimeoutMs is the middleware's alone: helpers keep timeoutMs
     ok 9 - retrievalTimeoutMs is the middleware's alone: helpers keep timeoutMs
       ---
-      duration_ms: 400.916244
+      duration_ms: 401.150129
       ...
     # Subtest: the streaming path goes ahead and is flagged the same way
     ok 10 - the streaming path goes ahead and is flagged the same way
       ---
-      duration_ms: 8.538345
+      duration_ms: 8.817635
       ...
     # Subtest: HTTP 400 still throws with skipMemoryOnError on: it will not fix itself
     ok 11 - HTTP 400 still throws with skipMemoryOnError on: it will not fix itself
       ---
-      duration_ms: 1.422704
+      duration_ms: 1.545566
       ...
     # Subtest: HTTP 401 still throws with skipMemoryOnError on: it will not fix itself
     ok 12 - HTTP 401 still throws with skipMemoryOnError on: it will not fix itself
       ---
-      duration_ms: 1.006543
+      duration_ms: 1.054133
       ...
     # Subtest: HTTP 403 still throws with skipMemoryOnError on: it will not fix itself
     ok 13 - HTTP 403 still throws with skipMemoryOnError on: it will not fix itself
       ---
-      duration_ms: 0.739204
+      duration_ms: 0.73177
       ...
     # Subtest: HTTP 404 (a missing space) still throws with skipMemoryOnError on
     ok 14 - HTTP 404 (a missing space) still throws with skipMemoryOnError on
       ---
-      duration_ms: 0.990061
+      duration_ms: 1.070845
       ...
     # Subtest: a configuration error found during the lookup still throws
     ok 15 - a configuration error found during the lookup still throws
       ---
-      duration_ms: 1.080493
+      duration_ms: 1.02087
       ...
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: extraction model overloaded
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: No object generated: could not parse the response.
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Storing memory 2 of 2 failed: GoodMem answered HTTP 503: overloaded (1 earlier memory was stored: 01a0f262-14e5-7474-afa9-3a7b3286cd77; retry from input 1 to avoid duplicates)
+# (node:678441) Warning: AI SDK Warning (fake-openai.chat / openai/gpt-4o-mini): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: extraction model overloaded
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: No object generated: could not parse the response.
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Storing memory 2 of 2 failed: GoodMem answered HTTP 503: overloaded (1 earlier memory was stored: 01a0f262-14e5-7474-afa9-3a7b3286cd77; retry from input 1 to avoid duplicates)
     # Subtest: skipMemoryOnError: false throws on a timeout, naming retrievalTimeoutMs
     ok 16 - skipMemoryOnError: false throws on a timeout, naming retrievalTimeoutMs
       ---
-      duration_ms: 80.992891
+      duration_ms: 81.529504
       ...
     # Subtest: validates skipMemoryOnError and retrievalTimeoutMs
     ok 17 - validates skipMemoryOnError and retrievalTimeoutMs
       ---
-      duration_ms: 0.655356
+      duration_ms: 0.664833
       ...
     1..17
 ok 4 - middleware when GoodMem is unavailable (skipMemoryOnError, retrievalTimeoutMs)
   ---
-  duration_ms: 714.207673
+  duration_ms: 714.450003
   type: 'suite'
   ...
 # Subtest: automatic saving (addMemory, extractionModel, extractFacts)
     # Subtest: is off by default: no extraction call and nothing stored
     ok 1 - is off by default: no extraction call and nothing stored
       ---
-      duration_ms: 1.702916
+      duration_ms: 1.925318
       ...
     # Subtest: 'always': one extraction call per turn, facts stored with the scope, the outcome reported with usage
     ok 2 - 'always': one extraction call per turn, facts stored with the scope, the outcome reported with usage
       ---
-      duration_ms: 4.213426
+      duration_ms: 3.867799
+      ...
+    # Subtest: the extraction instructions name JSON and spell out the exact shape
+    ok 3 - the extraction instructions name JSON and spell out the exact shape
+      ---
+      duration_ms: 0.088668
+      ...
+    # Subtest: through an OpenAI-compatible provider: the request asks for json_object, its messages say json, and the answer round-trips
+    ok 4 - through an OpenAI-compatible provider: the request asks for json_object, its messages say json, and the answer round-trips
+      ---
+      duration_ms: 3.922594
       ...
     # Subtest: extracts from the latest user message only: no injected memories, no assistant reply, no history
-    ok 3 - extracts from the latest user message only: no injected memories, no assistant reply, no history
+    ok 5 - extracts from the latest user message only: no injected memories, no assistant reply, no history
       ---
-      duration_ms: 1.733675
+      duration_ms: 1.601473
       ...
     # Subtest: a tool loop extracts once, on the step that answers the user
-    ok 4 - a tool loop extracts once, on the step that answers the user
+    ok 6 - a tool loop extracts once, on the step that answers the user
       ---
-      duration_ms: 3.543713
+      duration_ms: 3.177979
       ...
     # Subtest: skips a fact a memory retrieved for this turn already states, and duplicates within the turn
-    ok 5 - skips a fact a memory retrieved for this turn already states, and duplicates within the turn
+    ok 7 - skips a fact a memory retrieved for this turn already states, and duplicates within the turn
       ---
-      duration_ms: 2.006283
+      duration_ms: 1.517654
       ...
     # Subtest: a question or small talk stores nothing
-    ok 6 - a question or small talk stores nothing
+    ok 8 - a question or small talk stores nothing
       ---
-      duration_ms: 1.448293
+      duration_ms: 1.24222
       ...
     # Subtest: a failed extraction is flagged -- saveError, a warning, a log line -- and the call succeeds
-    ok 7 - a failed extraction is flagged -- saveError, a warning, a log line -- and the call succeeds
+    ok 9 - a failed extraction is flagged -- saveError, a warning, a log line -- and the call succeeds
       ---
-      duration_ms: 3.753744
+      duration_ms: 1.382417
       ...
     # Subtest: extraction output that is not the expected JSON is a flagged extraction failure
-    ok 8 - extraction output that is not the expected JSON is a flagged extraction failure
+    ok 10 - extraction output that is not the expected JSON is a flagged extraction failure
       ---
-      duration_ms: 1.485963
+      duration_ms: 1.27328
       ...
     # Subtest: a failed save is flagged with the facts and the memories already stored, and the call succeeds
-    ok 9 - a failed save is flagged with the facts and the memories already stored, and the call succeeds
+    ok 11 - a failed save is flagged with the facts and the memories already stored, and the call succeeds
       ---
-      duration_ms: 1.857049
+      duration_ms: 1.995322
       ...
     # Subtest: streaming: the outcome rides in the finish part, success or failure
-    ok 10 - streaming: the outcome rides in the finish part, success or failure
+    ok 12 - streaming: the outcome rides in the finish part, success or failure
       ---
-      duration_ms: 6.890184
+      duration_ms: 7.741018
       ...
     # Subtest: extractionModel does the extraction when given; the wrapped model only chats
-    ok 11 - extractionModel does the extraction when given; the wrapped model only chats
+    ok 13 - extractionModel does the extraction when given; the wrapped model only chats
       ---
-      duration_ms: 1.435368
+      duration_ms: 1.814118
       ...
     # Subtest: extractFacts replaces model extraction; its output is trimmed, de-duplicated and capped at 10
-    ok 12 - extractFacts replaces model extraction; its output is trimmed, de-duplicated and capped at 10
+    ok 14 - extractFacts replaces model extraction; its output is trimmed, de-duplicated and capped at 10
       ---
-      duration_ms: 2.274061
+      duration_ms: 2.256267
       ...
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: Automatic saving timed out after 150 ms (timeoutMs).
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: Automatic saving timed out after 150 ms (timeoutMs).
     # Subtest: the save is bounded by timeoutMs and reported as timed out
-    ok 13 - the save is bounded by timeoutMs and reported as timed out
+    ok 15 - the save is bounded by timeoutMs and reported as timed out
       ---
-      duration_ms: 151.954099
+      duration_ms: 151.679908
       ...
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: the call was aborted
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] automatic saving failed -- Extracting facts to remember failed: the call was aborted
     # Subtest: the caller's abort stops the save; nothing is stored
-    ok 14 - the caller's abort stops the save; nothing is stored
+    ok 16 - the caller's abort stops the save; nothing is stored
       ---
-      duration_ms: 51.28084
+      duration_ms: 50.704514
       ...
     # Subtest: a failed model call cancels the save
-    ok 15 - a failed model call cancels the save
+    ok 17 - a failed model call cancels the save
       ---
-      duration_ms: 102.663973
+      duration_ms: 102.468922
       ...
     # Subtest: extraction runs alongside the model call, not after it
-    ok 16 - extraction runs alongside the model call, not after it
+    ok 18 - extraction runs alongside the model call, not after it
       ---
-      duration_ms: 254.020185
+      duration_ms: 254.005137
       ...
     # Subtest: a stream that fails part-way stores nothing
-    ok 17 - a stream that fails part-way stores nothing
+    ok 19 - a stream that fails part-way stores nothing
       ---
-      duration_ms: 104.819468
+      duration_ms: 104.718677
       ...
     # Subtest: validates addMemory, extractionModel and extractFacts
-    ok 18 - validates addMemory, extractionModel and extractFacts
+    ok 20 - validates addMemory, extractionModel and extractFacts
       ---
-      duration_ms: 0.574412
+      duration_ms: 0.608837
       ...
-    1..18
+    1..20
 ok 5 - automatic saving (addMemory, extractionModel, extractFacts)
   ---
-  duration_ms: 698.25695
+  duration_ms: 698.603763
   type: 'suite'
   ...
 # Subtest: errors say whether a retry can help (isRetryable)
     # Subtest: HTTP 503: isRetryable is true
     ok 1 - HTTP 503: isRetryable is true
       ---
-      duration_ms: 0.631069
+      duration_ms: 0.586725
       ...
     # Subtest: HTTP 429: isRetryable is true
     ok 2 - HTTP 429: isRetryable is true
       ---
-      duration_ms: 0.332693
+      duration_ms: 0.329166
       ...
     # Subtest: HTTP 401: isRetryable is false
     ok 3 - HTTP 401: isRetryable is false
       ---
-      duration_ms: 0.306453
+      duration_ms: 0.289931
       ...
     # Subtest: HTTP 404: isRetryable is false
     ok 4 - HTTP 404: isRetryable is false
       ---
-      duration_ms: 0.402355
+      duration_ms: 0.4524
       ...
     # Subtest: an empty 200 stream: isRetryable is true
     ok 5 - an empty 200 stream: isRetryable is true
       ---
-      duration_ms: 0.296493
+      duration_ms: 0.329105
       ...
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- EMBEDDER_FAILED: Embedding failed: Failed to create inference client
-# (node:669095) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- NOT_FOUND: Reranker validation failed: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000 (ID: 00000000-0000-7000-8000-000000000000). Verify the reranker exists and is accessible.; RERANKING_FAILED: Failed to create reranker client: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000
     # Subtest: an unreachable server and a timeout are retryable; a configuration error is not
     ok 6 - an unreachable server and a timeout are retryable; a configuration error is not
       ---
-      duration_ms: 51.03401
+      duration_ms: 51.863706
       ...
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- EMBEDDER_FAILED: Embedding failed: Failed to create inference client
+# (node:678441) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- NOT_FOUND: Reranker validation failed: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000 (ID: 00000000-0000-7000-8000-000000000000). Verify the reranker exists and is accessible.; RERANKING_FAILED: Failed to create reranker client: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000
     1..6
 ok 6 - errors say whether a retry can help (isRetryable)
   ---
-  duration_ms: 53.206278
+  duration_ms: 54.067213
   type: 'suite'
   ...
 # Subtest: retrieval status contract
     # Subtest: a clean stream is not partial and logs nothing
     ok 1 - a clean stream is not partial and logs nothing
       ---
-      duration_ms: 0.730057
+      duration_ms: 0.782597
       ...
     # Subtest: Q1: FEATURE_DISABLED is noise by code alone
     ok 2 - Q1: FEATURE_DISABLED is noise by code alone
       ---
-      duration_ms: 0.64718
+      duration_ms: 0.696463
       ...
     # Subtest: Q4a: a degraded retrieval still returns its hits, flagged, with a WARNING log
     ok 3 - Q4a: a degraded retrieval still returns its hits, flagged, with a WARNING log
       ---
-      duration_ms: 0.628144
+      duration_ms: 0.916081
       ...
     # Subtest: Q4b: a degraded retrieval with no hits is flagged, not an empty success, and does not throw
     ok 4 - Q4b: a degraded retrieval with no hits is flagged, not an empty success, and does not throw
       ---
-      duration_ms: 0.419497
+      duration_ms: 0.390202
       ...
     # Subtest: Q3: a status code this build does not know becomes UNKNOWN, partial, results kept
     ok 5 - Q3: a status code this build does not know becomes UNKNOWN, partial, results kept
       ---
-      duration_ms: 0.686755
+      duration_ms: 0.475394
       ...
     # Subtest: a stream that breaks off keeps what arrived and says so
     ok 6 - a stream that breaks off keeps what arrived and says so
       ---
-      duration_ms: 0.658691
+      duration_ms: 0.570795
       ...
     # Subtest: a request that yields no event at all throws rather than reporting "nothing found"
     ok 7 - a request that yields no event at all throws rather than reporting "nothing found"
       ---
-      duration_ms: 0.550306
+      duration_ms: 0.38977
       ...
     # Subtest: an empty space is a clean, empty result
     ok 8 - an empty space is a clean, empty result
       ---
-      duration_ms: 0.408547
+      duration_ms: 0.370013
       ...
     1..8
 ok 7 - retrieval status contract
   ---
-  duration_ms: 4.928827
+  duration_ms: 4.78931
   type: 'suite'
   ...
 # Subtest: degraded retrieval surfaces through tools, middleware and helpers
     # Subtest: tool: the model receives partial, statuses and a warning
     ok 1 - tool: the model receives partial, statuses and a warning
       ---
-      duration_ms: 2.54201
+      duration_ms: 2.477006
       ...
     # Subtest: middleware: the injected text says retrieval failed, and the call carries a warning and partial metadata
     ok 2 - middleware: the injected text says retrieval failed, and the call carries a warning and partial metadata
       ---
-      duration_ms: 1.002656
+      duration_ms: 0.914808
       ...
     # Subtest: middleware (streaming): warning and partial metadata reach streamText
     ok 3 - middleware (streaming): warning and partial metadata reach streamText
       ---
-      duration_ms: 3.354023
+      duration_ms: 3.150166
       ...
     # Subtest: retrieveMemories: the context says results may be missing
     ok 4 - retrieveMemories: the context says results may be missing
       ---
-      duration_ms: 0.85758
+      duration_ms: 0.76277
       ...
     1..4
 ok 8 - degraded retrieval surfaces through tools, middleware and helpers
   ---
-  duration_ms: 7.88846
+  duration_ms: 7.41051
   type: 'suite'
   ...
 # Subtest: failures throw, carrying the server's explanation
     # Subtest: an HTTP error keeps its status and body
     ok 1 - an HTTP error keeps its status and body
       ---
-      duration_ms: 0.570904
+      duration_ms: 0.602735
       ...
     # Subtest: an unreachable server says which URL and why
     ok 2 - an unreachable server says which URL and why
       ---
-      duration_ms: 0.350306
+      duration_ms: 0.300852
       ...
     # Subtest: tool: a failed request becomes an AI SDK tool error with the server message
     ok 3 - tool: a failed request becomes an AI SDK tool error with the server message
       ---
-      duration_ms: 1.998238
+      duration_ms: 1.787667
       ...
     # Subtest: middleware with skipMemoryOnError: false: an unreachable server fails the call; the model is never called
     ok 4 - middleware with skipMemoryOnError: false: an unreachable server fails the call; the model is never called
       ---
-      duration_ms: 0.945487
+      duration_ms: 0.870003
       ...
     1..4
 ok 9 - failures throw, carrying the server's explanation
   ---
-  duration_ms: 3.982377
+  duration_ms: 3.664774
   type: 'suite'
   ...
 # Subtest: timeouts and cancellation
     # Subtest: a request that never answers is cut off at timeoutMs
     ok 1 - a request that never answers is cut off at timeoutMs
       ---
-      duration_ms: 150.978144
+      duration_ms: 150.323961
       ...
     # Subtest: a stream that stalls mid-way is cut off too, keeping what arrived
     ok 2 - a stream that stalls mid-way is cut off too, keeping what arrived
       ---
-      duration_ms: 150.896853
+      duration_ms: 151.078325
       ...
     # Subtest: every request the package makes carries an abort signal
     ok 3 - every request the package makes carries an abort signal
       ---
-      duration_ms: 2.605742
+      duration_ms: 2.11524
       ...
     # Subtest: a caller abort cancels the request and is rethrown as the abort
     ok 4 - a caller abort cancels the request and is rethrown as the abort
       ---
-      duration_ms: 29.883017
+      duration_ms: 30.95605
       ...
     # Subtest: middleware forwards the call's abortSignal to GoodMem
     ok 5 - middleware forwards the call's abortSignal to GoodMem
       ---
-      duration_ms: 30.535607
+      duration_ms: 30.838025
       ...
     1..5
 ok 10 - timeouts and cancellation
   ---
-  duration_ms: 365.217697
+  duration_ms: 365.704507
   type: 'suite'
   ...
 # Subtest: scores
     # Subtest: vector scores are flipped to higher-is-better, raw kept, order preserved
     ok 1 - vector scores are flipped to higher-is-better, raw kept, order preserved
       ---
-      duration_ms: 0.75285
+      duration_ms: 0.78382
       ...
     # Subtest: reranker scores come from the rerank stage and are never flipped
     ok 2 - reranker scores come from the rerank stage and are never flipped
       ---
-      duration_ms: 0.565304
+      duration_ms: 0.49444
       ...
     # Subtest: a reranker that failed does not mislabel the vector scores that came back
     ok 3 - a reranker that failed does not mislabel the vector scores that came back
       ---
-      duration_ms: 0.491043
+      duration_ms: 0.425208
       ...
     # Subtest: minScore filters reranker scores only, and warns with the observed range when it removes everything
     ok 4 - minScore filters reranker scores only, and warns with the observed range when it removes everything
       ---
-      duration_ms: 0.93099
+      duration_ms: 0.906603
       ...
     # Subtest: sends no reranker or threshold unless configured
     ok 5 - sends no reranker or threshold unless configured
       ---
-      duration_ms: 0.453611
+      duration_ms: 0.386885
       ...
     # Subtest: orientScore flips only vector scores
     ok 6 - orientScore flips only vector scores
       ---
-      duration_ms: 0.071415
+      duration_ms: 0.079671
       ...
     1..6
 ok 11 - scores
   ---
-  duration_ms: 3.407104
+  duration_ms: 3.223475
   type: 'suite'
   ...
 # Subtest: stream joining
     # Subtest: joins chunks to memories by UUID, whatever the order and memoryIndex
     ok 1 - joins chunks to memories by UUID, whatever the order and memoryIndex
       ---
-      duration_ms: 0.596253
+      duration_ms: 0.566066
       ...
     # Subtest: de-duplicates by chunk id, never by memory id
     ok 2 - de-duplicates by chunk id, never by memory id
       ---
-      duration_ms: 0.54216
+      duration_ms: 0.542881
       ...
     1..2
 ok 12 - stream joining
   ---
-  duration_ms: 1.19431
+  duration_ms: 1.168871
   type: 'suite'
   ...
 # Subtest: content decoding
     # Subtest: includeContent returns text as text and a PDF as base64, byte-identical
     ok 1 - includeContent returns text as text and a PDF as base64, byte-identical
       ---
-      duration_ms: 0.863632
+      duration_ms: 0.643393
       ...
     # Subtest: does not ask for content unless requested
     ok 2 - does not ask for content unless requested
       ---
-      duration_ms: 0.419237
+      duration_ms: 0.342621
       ...
     # Subtest: decodes by content type and charset, and keeps undecodable text as base64
     ok 3 - decodes by content type and charset, and keeps undecodable text as base64
       ---
-      duration_ms: 0.322492
+      duration_ms: 0.211391
       ...
     1..3
 ok 13 - content decoding
   ---
-  duration_ms: 1.759744
+  duration_ms: 1.326811
   type: 'suite'
   ...
 # Subtest: tools
     # Subtest: the model is offered exactly two tools, with minimal inputs (as sent to the provider)
     ok 1 - the model is offered exactly two tools, with minimal inputs (as sent to the provider)
       ---
-      duration_ms: 1.274141
+      duration_ms: 1.237481
       ...
     # Subtest: round-trips through generateText: the model calls searchMemories and receives real results
     ok 2 - round-trips through generateText: the model calls searchMemories and receives real results
       ---
-      duration_ms: 2.193919
+      duration_ms: 2.023314
       ...
     # Subtest: addMemory stores text in the configured space with the scope, and does not wait
     ok 3 - addMemory stores text in the configured space with the scope, and does not wait
       ---
-      duration_ms: 1.789511
+      duration_ms: 1.891023
       ...
     # Subtest: an out-of-range topK from the model is rejected before any request
     ok 4 - an out-of-range topK from the model is rejected before any request
       ---
-      duration_ms: 1.901694
+      duration_ms: 1.565995
       ...
     1..4
 ok 14 - tools
   ---
-  duration_ms: 7.265807
+  duration_ms: 6.816071
   type: 'suite'
   ...
 # Subtest: middleware
     # Subtest: appends memories to the leading system message, or adds one
     ok 1 - appends memories to the leading system message, or adds one
       ---
-      duration_ms: 1.725869
+      duration_ms: 3.421441
       ...
     # Subtest: position 'user' prepends memories to the latest user message
     ok 2 - position 'user' prepends memories to the latest user message
       ---
-      duration_ms: 2.843904
+      duration_ms: 0.746127
       ...
     # Subtest: a template controls the injected text; returning an empty string injects nothing
     ok 3 - a template controls the injected text; returning an empty string injects nothing
       ---
-      duration_ms: 1.630098
+      duration_ms: 1.237331
       ...
     # Subtest: does not modify the caller's messages or put memories into the conversation
     ok 4 - does not modify the caller's messages or put memories into the conversation
       ---
-      duration_ms: 0.899971
+      duration_ms: 0.707164
       ...
     # Subtest: a call with no user text is passed through without a retrieval
     ok 5 - a call with no user text is passed through without a retrieval
       ---
-      duration_ms: 0.479461
+      duration_ms: 0.370714
       ...
     # Subtest: searches the latest user message and reports the memories used
     ok 6 - searches the latest user message and reports the memories used
       ---
-      duration_ms: 1.003206
+      duration_ms: 0.660575
       ...
     1..6
 ok 15 - middleware
   ---
-  duration_ms: 8.7353
+  duration_ms: 7.260125
   type: 'suite'
   ...
 # Subtest: writes
     # Subtest: never sends publicRead (the server rejects it with HTTP 400)
     ok 1 - never sends publicRead (the server rejects it with HTTP 400)
       ---
-      duration_ms: 1.496154
+      duration_ms: 1.187125
       ...
     # Subtest: uploads a PDF as bytes with its content type, as multipart through the SDK
     ok 2 - uploads a PDF as bytes with its content type, as multipart through the SDK
       ---
-      duration_ms: 1.169994
+      duration_ms: 0.897776
       ...
     # Subtest: validates every input before writing anything
     ok 3 - validates every input before writing anything
       ---
-      duration_ms: 0.367608
+      duration_ms: 0.291504
       ...
     # Subtest: a failure part-way reports the memories already stored and where to resume
     ok 4 - a failure part-way reports the memories already stored and where to resume
       ---
-      duration_ms: 0.673611
+      duration_ms: 0.515439
       ...
     # Subtest: does not wait for indexing unless asked
     ok 5 - does not wait for indexing unless asked
       ---
-      duration_ms: 0.308146
+      duration_ms: 0.240857
       ...
     # Subtest: waitForIndexing polls only the memories it created until they complete
     ok 6 - waitForIndexing polls only the memories it created until they complete
       ---
-      duration_ms: 11.847714
+      duration_ms: 11.629126
       ...
     # Subtest: a memory that fails processing is reported, and the write is said to have succeeded
     ok 7 - a memory that fails processing is reported, and the write is said to have succeeded
       ---
-      duration_ms: 0.918245
+      duration_ms: 0.844034
       ...
     # Subtest: a wait that runs out is bounded and reported as pending, not failed
     ok 8 - a wait that runs out is bounded and reported as pending, not failed
       ---
-      duration_ms: 60.664721
+      duration_ms: 60.83316
       ...
     1..8
 ok 16 - writes
   ---
-  duration_ms: 77.696537
+  duration_ms: 76.678036
   type: 'suite'
   ...
 # Subtest: named space: create, reuse and pagination
     # Subtest: follows the listing to a match on the second page and reuses it
     ok 1 - follows the listing to a match on the second page and reuses it
       ---
-      duration_ms: 1.264283
+      duration_ms: 1.247781
       ...
     # Subtest: creates the space with the requested embedder when none exists, then reuses it
     ok 2 - creates the space with the requested embedder when none exists, then reuses it
       ---
-      duration_ms: 1.166066
+      duration_ms: 1.011041
       ...
     # Subtest: refuses to reuse a same-named space indexed by another embedder, naming both
     ok 3 - refuses to reuse a same-named space indexed by another embedder, naming both
       ---
-      duration_ms: 0.703627
+      duration_ms: 0.64743
       ...
     # Subtest: refuses to guess between two spaces with the same name
     ok 4 - refuses to guess between two spaces with the same name
       ---
-      duration_ms: 0.551949
+      duration_ms: 0.451729
       ...
     # Subtest: a server that repeats a page token fails loudly instead of looping
     ok 5 - a server that repeats a page token fails loudly instead of looping
       ---
-      duration_ms: 0.569713
+      duration_ms: 0.470494
       ...
     # Subtest: a runaway listing is bounded and refused, never silently truncated
     ok 6 - a runaway listing is bounded and refused, never silently truncated
       ---
-      duration_ms: 35.890824
+      duration_ms: 32.963384
       ...
     # Subtest: a space created concurrently by someone else (409) is found and reused
     ok 7 - a space created concurrently by someone else (409) is found and reused
       ---
-      duration_ms: 1.243393
+      duration_ms: 1.164032
       ...
     # Subtest: a rejected create carries the server's field-level message
     ok 8 - a rejected create carries the server's field-level message
       ---
-      duration_ms: 0.706683
+      duration_ms: 1.102425
       ...
     1..8
 ok 17 - named space: create, reuse and pagination
   ---
-  duration_ms: 42.312076
+  duration_ms: 39.280196
   type: 'suite'
   ...
 # Subtest: filters
     # Subtest: escapes an apostrophe with a backslash, not by doubling, and doubles backslashes
     ok 1 - escapes an apostrophe with a backslash, not by doubling, and doubles backslashes
       ---
-      duration_ms: 0.091293
+      duration_ms: 0.076666
       ...
     # Subtest: refuses control characters
     ok 2 - refuses control characters
       ---
-      duration_ms: 0.0946
+      duration_ms: 0.074812
       ...
     # Subtest: casts booleans as BOOLEAN and numbers as NUMERIC, never as TEXT
     ok 3 - casts booleans as BOOLEAN and numbers as NUMERIC, never as TEXT
       ---
-      duration_ms: 0.053932
+      duration_ms: 0.042611
       ...
     # Subtest: refuses unsafe and hyphenated field names, allows nested ones
     ok 4 - refuses unsafe and hyphenated field names, allows nested ones
       ---
-      duration_ms: 0.068941
+      duration_ms: 0.051067
       ...
     # Subtest: builds comparisons, sets, negation and combinations
     ok 5 - builds comparisons, sets, negation and combinations
       ---
-      duration_ms: 0.209859
+      duration_ms: 0.16299
       ...
     # Subtest: scope and filter reach every space key, and an injection payload stays a literal
     ok 6 - scope and filter reach every space key, and an injection payload stays a literal
       ---
-      duration_ms: 0.443022
+      duration_ms: 0.37362
       ...
     1..6
 ok 18 - filters
   ---
-  duration_ms: 1.072227
+  duration_ms: 0.85276
   type: 'suite'
   ...
 # Subtest: secrets and isolation
     # Subtest: the API key never appears in tools, wrapped models, results or errors
     ok 1 - the API key never appears in tools, wrapped models, results or errors
       ---
-      duration_ms: 3.823235
+      duration_ms: 3.87358
       ...
     # Subtest: the key is sent only in the x-api-key header
     ok 2 - the key is sent only in the x-api-key header
       ---
-      duration_ms: 0.451207
+      duration_ms: 0.461547
       ...
     # Subtest: two configurations keep their own client, spaces and scope
     ok 3 - two configurations keep their own client, spaces and scope
       ---
-      duration_ms: 1.275233
+      duration_ms: 1.302685
       ...
     1..3
 ok 19 - secrets and isolation
   ---
-  duration_ms: 5.630399
+  duration_ms: 5.71005
   type: 'suite'
   ...
 # Subtest: README
     # Subtest: every TypeScript example compiles against the package
     ok 1 - every TypeScript example compiles against the package
       ---
-      duration_ms: 839.395084
+      duration_ms: 868.618929
       ...
     1..1
 ok 20 - README
   ---
-  duration_ms: 839.469355
+  duration_ms: 868.694253
   type: 'suite'
   ...
 1..20
-# tests 125
+# tests 127
 # suites 20
-# pass 125
+# pass 127
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 3047.617701
+# duration_ms 3085.269544
 exit=0

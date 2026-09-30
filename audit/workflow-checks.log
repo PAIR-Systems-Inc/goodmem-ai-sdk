@@ -1,4 +1,4 @@
-# Workflow checks, commit 7bf6af4, 2026-09-30T15:57:52Z
+# Workflow checks, commit 948d88f, 2026-09-30T16:09:11Z
 
 ## 1. Every run: step extracted from the YAML and checked with bash -n
 ok   bash -n  ci.yml / test / Install  -> ci__test__02.sh
