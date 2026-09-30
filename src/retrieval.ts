@@ -4,7 +4,7 @@
  */
 
 import { connect, MAX_TOP_K, type Connection, type GoodmemConfig } from './config.js';
-import { GoodMemConfigError, wrapError } from './errors.js';
+import { GoodMemConfigError, GoodMemError, wrapError } from './errors.js';
 import { foldRetrieval, type RetrievalStatus, type SearchMemoriesResult } from './results.js';
 
 const CHAT_POST_PROCESSOR = 'com.goodmem.retrieval.postprocess.ChatPostProcessorFactory';
@@ -56,11 +56,42 @@ export function formatContext(result: SearchMemoriesResult): string {
   return lines.join('\n');
 }
 
+/** Internal options: a tighter bound on the whole search, used by the middleware. */
+export interface BoundedSearchOptions extends SearchOptions {
+  /** Upper bound on the whole search, space lookup included. Defaults to the connection's timeoutMs. */
+  timeoutMs?: number;
+  /** The option that set `timeoutMs`, named in timeout messages. */
+  timeoutOption?: string;
+}
+
+/**
+ * Wait for `promise`, but no longer than `ms` and no longer than `signal`
+ * allows. The promise itself is left to settle (and be handled) on its own.
+ */
+function bounded<T>(promise: Promise<T>, ms: number | undefined, signal: AbortSignal | undefined, onTimeout: () => Error): Promise<T> {
+  if (ms === undefined && !signal) return promise;
+  return new Promise<T>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const timer = ms === undefined ? undefined : setTimeout(() => finish(() => reject(onTimeout())), ms);
+    const onAbort = () => finish(() => reject(signal?.reason));
+    signal?.addEventListener('abort', onAbort, { once: true });
+    function finish(settle: () => void) {
+      if (timer !== undefined) clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      settle();
+    }
+    promise.then(
+      (value) => finish(() => resolve(value)),
+      (error) => finish(() => reject(error))
+    );
+  });
+}
+
 /** Run one retrieval over a connection. Shared by every entry point. */
 export async function search(
   conn: Connection,
   query: string,
-  options: SearchOptions = {}
+  options: BoundedSearchOptions = {}
 ): Promise<SearchMemoriesResult> {
   if (typeof query !== 'string' || query.trim().length === 0) {
     throw new GoodMemConfigError('A search needs a non-empty query string.');
@@ -69,8 +100,25 @@ export async function search(
   if (!Number.isInteger(topK) || topK < 1 || topK > MAX_TOP_K) {
     throw new GoodMemConfigError(`topK must be an integer from 1 to ${MAX_TOP_K} (got ${String(options.topK)}).`);
   }
-  const context = conn.errorContext(options.signal);
-  const spaceIds = await conn.spaceIds();
+  const started = Date.now();
+  const budget = options.timeoutMs;
+  const context = {
+    ...conn.errorContext(options.signal),
+    ...(budget !== undefined ? { timeoutMs: budget, timeoutOption: options.timeoutOption } : {}),
+  };
+  const spaceIds = await bounded(
+    conn.spaceIds(),
+    budget,
+    options.signal,
+    () =>
+      new GoodMemError(
+        `Looking up the configured space timed out after ${budget} ms: the GoodMem server at ${conn.baseUrl} ` +
+          `did not answer in time. Check that the server is healthy, or raise ${options.timeoutOption ?? 'timeoutMs'}.`,
+        { timedOut: true, isRetryable: true }
+      )
+  );
+  // Whatever the space lookup used comes out of the same budget.
+  const remaining = budget === undefined ? undefined : Math.max(1, budget - (Date.now() - started));
   const request = {
     message: query,
     spaceKeys: spaceIds.map((spaceId) => (conn.readFilter ? { spaceId, filter: conn.readFilter } : { spaceId })),
@@ -85,7 +133,10 @@ export async function search(
   let result: SearchMemoriesResult;
   try {
     result = await foldRetrieval(
-      conn.client.memories.retrieve(request, options.signal ? { signal: options.signal } : undefined)
+      conn.client.memories.retrieve(request, {
+        ...(options.signal ? { signal: options.signal } : {}),
+        ...(remaining !== undefined ? { timeoutMs: remaining } : {}),
+      })
     );
   } catch (error) {
     throw wrapError(error, 'Searching GoodMem', context);
@@ -123,7 +174,7 @@ export async function search(
 export async function retrieve(
   conn: Connection,
   query: string,
-  options: SearchOptions = {}
+  options: BoundedSearchOptions = {}
 ): Promise<RetrieveMemoriesResult> {
   const result = await search(conn, query, options);
   return { ...result, context: formatContext(result) };
@@ -142,7 +193,8 @@ export async function searchMemories(
   config: GoodmemConfig,
   options: SearchOptions = {}
 ): Promise<SearchMemoriesResult> {
-  return search(connect(config, 'searchMemories'), query, options);
+  const { topK, includeContent, signal } = options;
+  return search(connect(config, 'searchMemories'), query, { topK, includeContent, signal });
 }
 
 /**
@@ -154,5 +206,6 @@ export async function retrieveMemories(
   config: GoodmemConfig,
   options: SearchOptions = {}
 ): Promise<RetrieveMemoriesResult> {
-  return retrieve(connect(config, 'retrieveMemories'), query, options);
+  const { topK, includeContent, signal } = options;
+  return retrieve(connect(config, 'retrieveMemories'), query, { topK, includeContent, signal });
 }

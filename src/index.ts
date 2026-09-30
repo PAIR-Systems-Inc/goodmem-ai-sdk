@@ -44,7 +44,7 @@ export {
 } from './errors.js';
 export type { GoodMemErrorOptions } from './errors.js';
 
-export { MALFORMED_STREAM_CODE, UNKNOWN_CODE } from './results.js';
+export { MALFORMED_STREAM_CODE, RETRIEVAL_FAILED_CODE, UNKNOWN_CODE } from './results.js';
 export type { MemoryResult, RetrievalStatus, ScoreKind, SearchMemoriesResult } from './results.js';
 
 export type { GoodmemConfig, GoodmemLogger, GoodmemNamedSpace } from './config.js';

@@ -29,6 +29,7 @@ import {
   GoodMemIngestionError,
   goodmemTools,
   MALFORMED_STREAM_CODE,
+  RETRIEVAL_FAILED_CODE,
   retrieveMemories,
   searchMemories,
   UNKNOWN_CODE,
@@ -37,6 +38,7 @@ import {
 } from '../src/index';
 import { MAX_SPACES_SCANNED } from '../src/config';
 import { environmentDefaults } from '../src/env';
+import { DEFAULT_RETRIEVAL_TIMEOUT_MS } from '../src/middleware';
 import { decodeContent, orientScore } from '../src/results';
 import { FakeGoodmem, fixture, FIXTURES, hang, jsonResponse, manifest, replay } from './support/fake-goodmem';
 import { scriptedModel, streamingModel, systemText, textResult, toolCall, toolResultsIn } from './support/models';
@@ -305,6 +307,197 @@ describe('environment fallback (GOODMEM_API_KEY, GOODMEM_BASE_URL)', () => {
   });
 });
 
+// ----------------------------------- middleware when GoodMem is unavailable --
+
+describe('middleware when GoodMem is unavailable (skipMemoryOnError, retrievalTimeoutMs)', () => {
+  const unreachable = (async () => {
+    throw new TypeError('fetch failed', { cause: Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }) });
+  }) as typeof fetch;
+
+  function assertContinued(model: ReturnType<typeof scriptedModel>, result: any, logs: Logs, message: RegExp) {
+    assert.equal(model.doGenerateCalls.length, 1, 'the model was not called');
+    assert.match(
+      systemText(model.doGenerateCalls[0].prompt),
+      /GoodMem memory retrieval failed for this request \(RETRIEVAL_FAILED\)\. Relevant memories may exist but could not be retrieved; do not assume there are none\./
+    );
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.equal(meta.partial, true);
+    assert.equal(meta.resultCount, 0);
+    assert.deepEqual(meta.memoryIds, []);
+    assert.equal(meta.statuses.length, 1);
+    assert.equal(meta.statuses[0].code, RETRIEVAL_FAILED_CODE);
+    assert.match(meta.statuses[0].message, message);
+    assert.ok(result.warnings?.some((w: any) => w.type === 'other' && /memory lookup failed, so this call went ahead without memories/.test(w.message)));
+    assert.equal(logs.lines.length, 1);
+    assert.match(logs.lines[0], /^\[goodmem\] memory lookup failed; calling the model without memories because skipMemoryOnError is on -- /);
+    return meta;
+  }
+
+  it('an unreachable server: the call goes ahead, told memories may be missing, and is flagged', async () => {
+    const { logs, config } = setup({ fetch: unreachable });
+    const model = scriptedModel(() => textResult('answered anyway'));
+    const result = await generateText({ model: withGoodmem(model, config), prompt: 'What is my name?' });
+    assert.equal(result.text, 'answered anyway');
+    assertContinued(model, result, logs, /could not reach the GoodMem server at https:\/\/goodmem\.test \(ECONNREFUSED\)/);
+  });
+
+  for (const status of [503, 500, 429, 408]) {
+    it(`HTTP ${status} is an availability failure: the call goes ahead, flagged with the status`, async () => {
+      const { fake, logs, config } = setup();
+      fake.on('POST', '/v1/memories:retrieve', () => jsonResponse({ error: `server says ${status}` }, status));
+      const model = scriptedModel(() => textResult('ok'));
+      const result = await generateText({ model: withGoodmem(model, config), prompt: 'hi' });
+      const meta = assertContinued(model, result, logs, new RegExp(`HTTP ${status}: server says ${status}`));
+      assert.deepEqual(meta.statuses[0].details, { statusCode: status });
+    });
+  }
+
+  it('a broken response (a 200 with no events) is an availability failure too', async () => {
+    const { fake, logs, config } = setup();
+    fake.on('POST', '/v1/memories:retrieve', () => ndjson(''));
+    const model = scriptedModel(() => textResult('ok'));
+    const result = await generateText({ model: withGoodmem(model, config), prompt: 'hi' });
+    assertContinued(model, result, logs, /empty stream/);
+  });
+
+  it('a lookup slower than retrievalTimeoutMs is cut off and the call goes ahead, flagged as a timeout', async () => {
+    const { fake, logs, config } = setup();
+    fake.on('POST', '/v1/memories:retrieve', hang);
+    const model = scriptedModel(() => textResult('ok'));
+    const started = Date.now();
+    const result = await generateText({ model: withGoodmem(model, { ...config, retrievalTimeoutMs: 100 }), prompt: 'hi' });
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed >= 90 && elapsed < 1500, `took ${elapsed} ms`);
+    const meta = assertContinued(model, result, logs, /timed out after 100 ms: .*raise retrievalTimeoutMs\./);
+    assert.deepEqual(meta.statuses[0].details, { timedOut: true });
+  });
+
+  it('retrievalTimeoutMs bounds the whole lookup, including finding a named space', async () => {
+    // timeoutMs still bounds the space listing itself, which carries on in the
+    // background (and is cached for the next call) after the call went ahead.
+    const { fake, logs, config } = setup({ spaceId: undefined, space: { name: 'slow-lookup', embedderId: 'e-1' }, timeoutMs: 300 });
+    fake.on('GET', '/v1/spaces', hang);
+    const model = scriptedModel(() => textResult('ok'));
+    const started = Date.now();
+    const result = await generateText({ model: withGoodmem(model, { ...config, retrievalTimeoutMs: 100 }), prompt: 'hi' });
+    assert.ok(Date.now() - started < 1500);
+    assertContinued(model, result, logs, /Looking up the configured space timed out after 100 ms.*raise retrievalTimeoutMs/);
+  });
+
+  it('retrievalTimeoutMs is the middleware\'s alone: helpers keep timeoutMs', async () => {
+    const { fake, config } = setup({ timeoutMs: 400 });
+    fake.on('POST', '/v1/memories:retrieve', hang);
+    const started = Date.now();
+    await assert.rejects(searchMemories('q', config), /timed out after 400 ms: .*raise timeoutMs\./);
+    assert.ok(Date.now() - started >= 380);
+    assert.throws(() => goodmemTools({ ...config, retrievalTimeoutMs: 100 } as any), /unknown option\(s\) "retrievalTimeoutMs"/);
+    assert.equal(DEFAULT_RETRIEVAL_TIMEOUT_MS, 5000);
+  });
+
+  it('the streaming path goes ahead and is flagged the same way', async () => {
+    const { config } = setup({ fetch: unreachable });
+    const result = streamText({ model: withGoodmem(streamingModel(), config), prompt: 'hi' });
+    assert.equal(await result.text, 'ok');
+    assert.ok((await result.warnings)?.some((w: any) => /memory lookup failed/.test(w.message)));
+    const meta = (await result.providerMetadata)?.goodmem as any;
+    assert.equal(meta.partial, true);
+    assert.equal(meta.statuses[0].code, RETRIEVAL_FAILED_CODE);
+  });
+
+  for (const [status, body] of [
+    [400, { error: 'Invalid filter for space x: Parse error' }],
+    [401, { error: 'Invalid API key' }],
+    [403, { error: 'Permission denied' }],
+  ] as const) {
+    it(`HTTP ${status} still throws with skipMemoryOnError on: it will not fix itself`, async () => {
+      const { fake, logs, config } = setup();
+      fake.on('POST', '/v1/memories:retrieve', () => jsonResponse(body, status));
+      const model = scriptedModel(() => textResult('never'));
+      await rejectsWith<GoodMemError>(generateText({ model: withGoodmem(model, config), prompt: 'hi' }), (e) => {
+        assert.ok(GoodMemError.isInstance(e));
+        assert.equal(e.statusCode, status);
+        assert.equal(e.isRetryable, false);
+        assert.match(e.message, new RegExp(`HTTP ${status}: ${body.error}`));
+      });
+      assert.equal(model.doGenerateCalls.length, 0);
+      assert.deepEqual(logs.lines, []);
+    });
+  }
+
+  it('HTTP 404 (a missing space) still throws with skipMemoryOnError on', async () => {
+    const { fake, config } = setup();
+    fake.on('POST', '/v1/memories:retrieve', 'error_retrieve_missing_space.json');
+    const model = scriptedModel(() => textResult('never'));
+    await assert.rejects(generateText({ model: withGoodmem(model, config), prompt: 'hi' }), /HTTP 404: Space not found/);
+    assert.equal(model.doGenerateCalls.length, 0);
+  });
+
+  it('a configuration error found during the lookup still throws', async () => {
+    const page = JSON.parse(fixture('spaces_page2.json').toString());
+    const { fake, config } = setup({ spaceId: undefined, space: { name: page.spaces[0].name, embedderId: 'another-embedder' } });
+    fake.on('GET', '/v1/spaces', () => jsonResponse(page));
+    const model = scriptedModel(() => textResult('never'));
+    await rejectsWith(generateText({ model: withGoodmem(model, config), prompt: 'hi' }), (e) => {
+      assert.ok(GoodMemConfigError.isInstance(e));
+    });
+    assert.equal(model.doGenerateCalls.length, 0);
+  });
+
+  it('skipMemoryOnError: false throws on a timeout, naming retrievalTimeoutMs', async () => {
+    const { fake, config } = setup();
+    fake.on('POST', '/v1/memories:retrieve', hang);
+    const model = scriptedModel(() => textResult('never'));
+    await rejectsWith<GoodMemError>(
+      generateText({ model: withGoodmem(model, { ...config, skipMemoryOnError: false, retrievalTimeoutMs: 80 }), prompt: 'hi' }),
+      (e) => {
+        assert.equal(e.timedOut, true);
+        assert.equal(e.isRetryable, true);
+        assert.match(e.message, /timed out after 80 ms: .*raise retrievalTimeoutMs/);
+      }
+    );
+    assert.equal(model.doGenerateCalls.length, 0);
+  });
+
+  it('validates skipMemoryOnError and retrievalTimeoutMs', () => {
+    const { config } = setup();
+    for (const retrievalTimeoutMs of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      assert.throws(() => withGoodmem(streamingModel(), { ...config, retrievalTimeoutMs }), /retrievalTimeoutMs must be a positive number/);
+    }
+    assert.throws(() => withGoodmem(streamingModel(), { ...config, skipMemoryOnError: 'yes' as any }), /skipMemoryOnError must be true or false/);
+  });
+});
+
+// ------------------------------------------------------------ isRetryable --
+
+describe('errors say whether a retry can help (isRetryable)', () => {
+  const cases: Array<[string, () => Response | Promise<Response>, boolean]> = [
+    ['HTTP 503', () => jsonResponse({ error: 'overloaded' }, 503), true],
+    ['HTTP 429', () => jsonResponse({ error: 'slow down' }, 429), true],
+    ['HTTP 401', () => jsonResponse({ error: 'Invalid API key' }, 401), false],
+    ['HTTP 404', () => replay('error_retrieve_missing_space.json'), false],
+    ['an empty 200 stream', () => ndjson(''), true],
+  ];
+  for (const [label, respond, retryable] of cases) {
+    it(`${label}: isRetryable is ${retryable}`, async () => {
+      const { fake, config } = setup();
+      fake.on('POST', '/v1/memories:retrieve', respond);
+      await rejectsWith<GoodMemError>(searchMemories('q', config), (e) => assert.equal(e.isRetryable, retryable));
+    });
+  }
+
+  it('an unreachable server and a timeout are retryable; a configuration error is not', async () => {
+    const down = setup({ fetch: (async () => { throw new TypeError('fetch failed'); }) as typeof fetch });
+    await rejectsWith<GoodMemError>(searchMemories('q', down.config), (e) => assert.equal(e.isRetryable, true));
+    const slow = setup({ timeoutMs: 50 });
+    slow.fake.on('POST', '/v1/memories:retrieve', hang);
+    await rejectsWith<GoodMemError>(searchMemories('q', slow.config), (e) => {
+      assert.equal(e.timedOut, true);
+      assert.equal(e.isRetryable, true);
+    });
+    assert.throws(() => goodmemTools({ ...down.config, topK: 0 }), (e: any) => GoodMemConfigError.isInstance(e) && e.isRetryable === false);
+  });
+});
+
 // -------------------------------------------------- retrieval status contract
 
 describe('retrieval status contract', () => {
@@ -495,10 +688,10 @@ describe('failures throw, carrying the server\'s explanation', () => {
     assert.match(JSON.stringify(errorPart.output), /HTTP 404: Space not found/);
   });
 
-  it('middleware: an unreachable server fails the call; the model is never called with no memories', async () => {
+  it('middleware with skipMemoryOnError: false: an unreachable server fails the call; the model is never called', async () => {
     const { config } = setup({ fetch: (async () => { throw new TypeError('fetch failed'); }) as typeof fetch });
     const model = scriptedModel(() => textResult('should not run'));
-    await rejectsWith(generateText({ model: withGoodmem(model, config), prompt: 'hello' }), (e) => {
+    await rejectsWith(generateText({ model: withGoodmem(model, { ...config, skipMemoryOnError: false }), prompt: 'hello' }), (e) => {
       assert.ok(GoodMemError.isInstance(e), `got ${String(e)}`);
       assert.match(e.message, /could not reach the GoodMem server/);
     });

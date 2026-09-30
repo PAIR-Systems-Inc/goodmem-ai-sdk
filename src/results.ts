@@ -24,6 +24,13 @@ export const UNKNOWN_CODE = 'UNKNOWN';
 /** Reported when the stream broke off or carried an undecodable line. */
 export const MALFORMED_STREAM_CODE = 'MALFORMED_STREAM';
 
+/**
+ * Reported by the middleware when a lookup failed outright for an
+ * availability reason and the call went ahead without memories
+ * (`skipMemoryOnError`).
+ */
+export const RETRIEVAL_FAILED_CODE = 'RETRIEVAL_FAILED';
+
 /** Codes this build knows about. Anything else becomes `UNKNOWN`. */
 export const KNOWN_CODES: ReadonlySet<string> = new Set([
   'GOODMEM_STATUS_CODE_UNSPECIFIED',

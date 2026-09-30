@@ -9,9 +9,10 @@
 
 import { wrapLanguageModel, type LanguageModelMiddleware } from 'ai';
 
-import { connect, type GoodmemConfig } from './config.js';
-import { GoodMemConfigError } from './errors.js';
-import { retrieve, type RetrieveMemoriesResult } from './retrieval.js';
+import { connect, MAX_TIMEOUT_MS, type GoodmemConfig } from './config.js';
+import { GoodMemConfigError, GoodMemError } from './errors.js';
+import { RETRIEVAL_FAILED_CODE } from './results.js';
+import { formatContext, retrieve, type RetrieveMemoriesResult } from './retrieval.js';
 
 type TransformOptions = Parameters<NonNullable<LanguageModelMiddleware['transformParams']>>[0];
 type CallParams = TransformOptions['params'];
@@ -21,6 +22,9 @@ type GenerateResult = Awaited<ReturnType<NonNullable<LanguageModelMiddleware['wr
 type StreamResult = Awaited<ReturnType<NonNullable<LanguageModelMiddleware['wrapStream']>>>;
 type StreamPart = StreamResult['stream'] extends ReadableStream<infer P> ? P : never;
 type Warning = NonNullable<GenerateResult['warnings']>[number];
+
+/** Default for `retrievalTimeoutMs`: how long a call waits for memories. */
+export const DEFAULT_RETRIEVAL_TIMEOUT_MS = 5_000;
 
 /** The model `withGoodmem` wraps: any model `wrapLanguageModel` accepts. */
 export type GoodmemWrappableModel = Parameters<typeof wrapLanguageModel>[0]['model'];
@@ -42,6 +46,26 @@ export interface GoodmemMiddlewareConfig extends GoodmemConfig {
    * when a retrieval was degraded.
    */
   template?: (retrieved: RetrieveMemoriesResult) => string;
+  /**
+   * When the memory lookup fails because GoodMem is unavailable -- the server
+   * cannot be reached, the lookup exceeds `retrievalTimeoutMs`, the server
+   * answers HTTP 5xx, 429 or 408, or the response is broken -- call the model
+   * anyway, telling it that memories may be missing, and flag the call
+   * (`warnings`, `providerMetadata.goodmem`, a logged warning). Defaults to
+   * true. Failures that will not fix themselves still throw: a configuration
+   * error, HTTP 400/401/403/404 (a rejected key, a missing space, an invalid
+   * filter), and the caller's own abort. Set false to throw on every failure.
+   */
+  skipMemoryOnError?: boolean;
+  /**
+   * Upper bound, in milliseconds, on the memory lookup for one call, space
+   * lookup included. Defaults to 5000. Only the middleware's lookup uses it;
+   * every other request keeps `timeoutMs`. A lookup that runs out is an
+   * availability failure, handled by `skipMemoryOnError`. The server embeds
+   * each query with the space's embedder, so a slow hosted embedder can take
+   * longer than this on its own.
+   */
+  retrievalTimeoutMs?: number;
 }
 
 function lastUserText(prompt: Prompt): string {
@@ -99,19 +123,45 @@ function warningsFor(retrieved: RetrieveMemoriesResult): Warning[] {
 }
 
 /**
+ * The retrieval result reported when a lookup failed outright and the call
+ * went ahead without memories: no results, partial, and one status saying why.
+ */
+function lookupFailed(error: GoodMemError): RetrieveMemoriesResult {
+  const details: Record<string, unknown> = {};
+  if (error.statusCode !== undefined) details.statusCode = error.statusCode;
+  if (error.timedOut) details.timedOut = true;
+  const statuses = [
+    { code: RETRIEVAL_FAILED_CODE, message: error.message, ...(Object.keys(details).length ? { details } : {}) },
+  ];
+  const result = {
+    results: [],
+    statuses,
+    partial: true,
+    warning: `GoodMem memory lookup failed, so this call went ahead without memories -- ${error.message}`,
+    resultSetId: '',
+  };
+  return { ...result, context: formatContext(result) };
+}
+
+/**
  * Wrap a language model so every call is given relevant memories.
  *
  * For each call, the text of the latest user message is searched in the
  * configured space(s) and the results are added to the prompt. A call with
  * no user text is passed through untouched.
  *
- * Retrieval follows the GoodMem status contract:
+ * Retrieval follows the GoodMem status contract, and a failed lookup is
+ * never presented to the model as "no memories":
  * - a degraded retrieval (the server reported a problem) still injects what
  *   arrived, says in the injected text that memories may be missing, adds a
- *   warning to the call's `warnings`, and logs it -- it is never presented as
- *   "no memories";
- * - an unreachable server, a timeout or a rejected request throws
- *   `GoodMemError`, failing the call rather than silently injecting nothing.
+ *   warning to the call's `warnings`, and logs it;
+ * - a lookup that fails because GoodMem is unavailable (unreachable, slower
+ *   than `retrievalTimeoutMs`, HTTP 5xx/429/408, a broken response) is
+ *   handled the same way with no results and a `RETRIEVAL_FAILED` status, and
+ *   the call goes ahead -- unless `skipMemoryOnError` is false, in which case
+ *   it throws `GoodMemError`;
+ * - a failure that will not fix itself (a configuration error, HTTP
+ *   400/401/403/404) and the caller's own abort always throw.
  *
  * The outcome is reported on each result as `providerMetadata.goodmem`:
  * `{ partial, resultCount, memoryIds, statuses }`.
@@ -120,7 +170,7 @@ export function withGoodmem(
   model: GoodmemWrappableModel,
   config: GoodmemMiddlewareConfig
 ): ReturnType<typeof wrapLanguageModel> {
-  const conn = connect(config, 'withGoodmem', ['position', 'template']);
+  const conn = connect(config, 'withGoodmem', ['position', 'template', 'skipMemoryOnError', 'retrievalTimeoutMs']);
   if (!model || typeof model !== 'object' || typeof (model as { doGenerate?: unknown }).doGenerate !== 'function') {
     throw new GoodMemConfigError(
       'withGoodmem: pass a language model instance, e.g. openai("gpt-4o"), not a model id string.'
@@ -134,6 +184,37 @@ export function withGoodmem(
   if (template !== undefined && typeof template !== 'function') {
     throw new GoodMemConfigError('withGoodmem: template must be a function returning the text to inject.');
   }
+  const skipMemoryOnError = config.skipMemoryOnError ?? true;
+  if (typeof skipMemoryOnError !== 'boolean') {
+    throw new GoodMemConfigError(`withGoodmem: skipMemoryOnError must be true or false (got ${JSON.stringify(config.skipMemoryOnError)}).`);
+  }
+  const retrievalTimeoutMs = config.retrievalTimeoutMs ?? DEFAULT_RETRIEVAL_TIMEOUT_MS;
+  if (
+    typeof retrievalTimeoutMs !== 'number' ||
+    !Number.isFinite(retrievalTimeoutMs) ||
+    retrievalTimeoutMs <= 0 ||
+    retrievalTimeoutMs > MAX_TIMEOUT_MS
+  ) {
+    throw new GoodMemConfigError(
+      `withGoodmem: retrievalTimeoutMs must be a positive number of milliseconds (got ${String(config.retrievalTimeoutMs)}).`
+    );
+  }
+
+  /** The lookup for one call; availability failures become a flagged, empty result when allowed. */
+  const lookUp = async (query: string, signal: AbortSignal | undefined): Promise<RetrieveMemoriesResult> => {
+    try {
+      return await retrieve(conn, query, { signal, timeoutMs: retrievalTimeoutMs, timeoutOption: 'retrievalTimeoutMs' });
+    } catch (error) {
+      const skippable =
+        skipMemoryOnError && !signal?.aborted && GoodMemError.isInstance(error) && error.isRetryable;
+      if (!skippable) throw error;
+      const failed = lookupFailed(error as GoodMemError);
+      conn.logger.warn(
+        `[goodmem] memory lookup failed; calling the model without memories because skipMemoryOnError is on -- ${(error as Error).message}`
+      );
+      return failed;
+    }
+  };
 
   const outcomes = new WeakMap<object, RetrieveMemoriesResult>();
 
@@ -143,7 +224,7 @@ export function withGoodmem(
     transformParams: async ({ params }) => {
       const query = lastUserText(params.prompt);
       if (!query) return params;
-      const retrieved = await retrieve(conn, query, { signal: params.abortSignal });
+      const retrieved = await lookUp(query, params.abortSignal);
       const text = template ? template(retrieved) : retrieved.context;
       if (typeof text !== 'string') {
         throw new GoodMemConfigError('withGoodmem: template must return a string.');

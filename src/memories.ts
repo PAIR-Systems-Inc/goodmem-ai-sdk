@@ -214,6 +214,7 @@ export async function add(
           statusCode: base.statusCode,
           body: base.body,
           timedOut: base.timedOut,
+          isRetryable: base.isRetryable,
           cause: base,
         }
       );
@@ -259,11 +260,17 @@ async function waitForIndexing(
     }
   } catch (error) {
     if (signal?.aborted) throw signal.reason ?? error;
-    const wrapped = wrapError(error, 'Checking indexing status', conn.errorContext(signal)) as Error;
+    const wrapped = wrapError(error, 'Checking indexing status', conn.errorContext(signal)) as GoodMemError;
     throw new GoodMemIndexingError(
       `${plural(stored.length, 'memory')} ${were(stored.length)} stored, but checking whether they finished indexing failed: ` +
         `${wrapped.message}. The writes succeeded; do not store them again.`,
-      { memoryIds, failedMemoryIds: failed, pendingMemoryIds: [...pending.keys()], cause: wrapped }
+      {
+        memoryIds,
+        failedMemoryIds: failed,
+        pendingMemoryIds: [...pending.keys()],
+        isRetryable: wrapped.isRetryable,
+        cause: wrapped,
+      }
     );
   }
 
@@ -286,6 +293,7 @@ async function waitForIndexing(
         failedMemoryIds: failed,
         pendingMemoryIds: [...pending.keys()],
         timedOut: pending.size > 0,
+        isRetryable: failed.length === 0,
       }
     );
   }

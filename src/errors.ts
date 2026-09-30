@@ -18,6 +18,12 @@ export interface GoodMemErrorOptions {
   body?: string;
   /** True when the request was cut off by `timeoutMs`. */
   timedOut?: boolean;
+  /**
+   * True when the failure is about availability -- the server could not be
+   * reached, was too slow, was overloaded (HTTP 5xx, 429, 408) or sent a broken
+   * response -- so the same request may succeed later.
+   */
+  isRetryable?: boolean;
   /** The underlying error. */
   cause?: unknown;
 }
@@ -30,6 +36,14 @@ export class GoodMemError extends Error {
   readonly body?: string;
   /** True when the request was cut off by `timeoutMs`. */
   readonly timedOut: boolean;
+  /**
+   * True for availability failures that may go away on their own: the server
+   * could not be reached, was too slow, answered HTTP 5xx, 429 or 408, or sent
+   * a broken response. False for failures that will repeat until something is
+   * changed: a rejected key, a missing space, an invalid filter, a bad
+   * configuration.
+   */
+  readonly isRetryable: boolean;
 
   constructor(message: string, options: GoodMemErrorOptions = {}) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause });
@@ -38,6 +52,7 @@ export class GoodMemError extends Error {
     this.statusCode = options.statusCode;
     this.body = options.body;
     this.timedOut = options.timedOut ?? false;
+    this.isRetryable = options.isRetryable ?? false;
   }
 
   /** True for any error raised by this package, including subclasses. */
@@ -121,6 +136,8 @@ export class GoodMemIndexingError extends GoodMemError {
 export interface ErrorContext {
   baseUrl: string;
   timeoutMs: number;
+  /** The option that set `timeoutMs`, named in timeout messages. */
+  timeoutOption?: string;
   signal?: AbortSignal;
 }
 
@@ -194,14 +211,14 @@ export function wrapError(error: unknown, what: string, context: ErrorContext): 
     const detail = serverMessage(body);
     return new GoodMemError(
       `${what} failed: GoodMem answered HTTP ${e.statusCode}${detail ? `: ${detail}` : ''}`,
-      { statusCode: e.statusCode, body, cause: error }
+      { statusCode: e.statusCode, body, cause: error, isRetryable: retryableStatus(e.statusCode) }
     );
   }
   if (isTimeout(error)) {
     return new GoodMemError(
       `${what} timed out after ${context.timeoutMs} ms: the GoodMem server at ${context.baseUrl} ` +
-        'did not answer in time. Check that the server is healthy, or raise timeoutMs.',
-      { timedOut: true, cause: error }
+        `did not answer in time. Check that the server is healthy, or raise ${context.timeoutOption ?? 'timeoutMs'}.`,
+      { timedOut: true, cause: error, isRetryable: true }
     );
   }
   const message = typeof e?.message === 'string' ? e.message : String(error);
@@ -210,8 +227,16 @@ export function wrapError(error: unknown, what: string, context: ErrorContext): 
     return new GoodMemError(
       `${what} failed: could not reach the GoodMem server at ${context.baseUrl}` +
         `${reason ? ` (${reason})` : ''}. Check baseUrl and that the server is running.`,
-      { cause: error }
+      { cause: error, isRetryable: true }
     );
   }
-  return new GoodMemError(`${what} failed: ${message}`, { cause: error });
+  // A 2xx response whose body was empty or not valid NDJSON/JSON: a broken
+  // response, which a retry may not repeat.
+  const brokenResponse = e?.name === 'ParseError';
+  return new GoodMemError(`${what} failed: ${message}`, { cause: error, isRetryable: brokenResponse });
+}
+
+/** HTTP statuses that report availability rather than a mistake in the request. */
+function retryableStatus(status: number): boolean {
+  return status >= 500 || status === 429 || status === 408;
 }
