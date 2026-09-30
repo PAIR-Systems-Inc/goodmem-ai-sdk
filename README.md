@@ -27,24 +27,53 @@ bun add @pairsystems/goodmem-ai-sdk ai zod
 four package managers install it without peer warnings, and it also runs on
 the Bun runtime.
 
+## Get an instance URL and API key
+
+You need a GoodMem server URL and an API key for it.
+
+- **GoodMem Cloud.** Sign up or sign in at
+  [cloud.goodmem.ai/login](https://cloud.goodmem.ai/login) with Google or
+  GitHub. The free 14-day trial needs no credit card, and a trial instance is
+  provisioned automatically. Instance URLs look like
+  `https://gm-<name>-<id>.cloud.goodmem.ai`; take the URL and an API key from
+  the GoodMem Cloud app.
+- **Self-hosted.** Install a server with
+  `curl -s https://get.goodmem.ai | bash` (see
+  [docs.goodmem.ai](https://docs.goodmem.ai)), then use its URL and an API key
+  it issued. The self-hosted server this package is tested against serves
+  `http://localhost:8080`.
+
+Then either put them in the environment:
+
+```bash
+export GOODMEM_BASE_URL=https://gm-<name>-<id>.cloud.goodmem.ai
+export GOODMEM_API_KEY=<your-api-key>
+```
+
+or pass them as `baseUrl` and `apiKey`.
+
 ## Configure
 
-Every entry point takes the same configuration object:
+Every entry point takes the same configuration object. With the two variables
+above set, a space is all it needs:
 
 ```ts
 import type { GoodmemConfig } from '@pairsystems/goodmem-ai-sdk';
 
-const goodmem: GoodmemConfig = {
-  apiKey: process.env.GOODMEM_API_KEY!,
-  baseUrl: process.env.GOODMEM_BASE_URL!, // e.g. http://localhost:8080
+const goodmem: GoodmemConfig = { spaceId: '<space-uuid>' };
+
+// The same, with the server and key passed explicitly:
+const explicit: GoodmemConfig = {
+  apiKey: '<your-api-key>',
+  baseUrl: 'https://gm-<name>-<id>.cloud.goodmem.ai',
   spaceId: '<space-uuid>',
 };
 ```
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `apiKey` | required | Your GoodMem API key. |
-| `baseUrl` | required | Your GoodMem server. There is no default server. |
+| `apiKey` | `GOODMEM_API_KEY` | Your GoodMem API key. |
+| `baseUrl` | `GOODMEM_BASE_URL` | Your GoodMem server. There is no default server. |
 | `spaceId` / `spaceIds` / `space` | one required | Where memories are read and written; see [Spaces and scoping](#spaces-and-scoping). The model never chooses a space. |
 | `topK` | `5` | Results per search (1-100). |
 | `timeoutMs` | `30000` | Upper bound on every request, including reading a result stream to its end. It cannot be turned off. |
@@ -55,12 +84,21 @@ const goodmem: GoodmemConfig = {
 | `fetch` | global `fetch` | A `fetch` for the GoodMem SDK to use (a proxy, a custom CA, tests). |
 | `logger` | `console` | Where warnings about degraded retrievals are written. |
 
-The package never reads environment variables itself: it uses exactly the
-configuration it is given. Configuration mistakes throw `GoodMemConfigError`
-straight away, naming the option, and an unknown option (a typo such as
-"topk" for `topK`) is an error rather than silently ignored.
+`apiKey` falls back to `GOODMEM_API_KEY`, and `baseUrl` to `GOODMEM_BASE_URL`,
+each only when that option is omitted. An explicit option always wins, an
+explicit empty string is an error rather than a fallback, and no other
+environment variable is read. Where there is no Node-style environment (a
+browser, some edge runtimes), pass both options.
+
+Configuration mistakes throw `GoodMemConfigError` straight away, naming the
+option and how to fix it. A missing key, for example, says to pass `apiKey`
+or set `GOODMEM_API_KEY`, and where to get one. An unknown option (a typo such
+as "topk" for `topK`) is an error rather than silently ignored.
 
 ## Tools
+
+The examples from here on assume `GOODMEM_API_KEY` and `GOODMEM_BASE_URL` are
+set; otherwise add `apiKey` and `baseUrl` to each configuration.
 
 ```ts
 import { openai } from '@ai-sdk/openai';
@@ -69,11 +107,7 @@ import { goodmemTools } from '@pairsystems/goodmem-ai-sdk';
 
 const { text } = await generateText({
   model: openai('gpt-4o'),
-  tools: goodmemTools({
-    apiKey: process.env.GOODMEM_API_KEY!,
-    baseUrl: process.env.GOODMEM_BASE_URL!,
-    spaceId: '<space-uuid>',
-  }),
+  tools: goodmemTools({ spaceId: '<space-uuid>' }),
   stopWhen: stepCountIs(5),
   prompt: 'Remember that I prefer window seats. What do you know about how I like to travel?',
 });
@@ -95,11 +129,7 @@ search tool:
 ```ts
 import { goodmemTools } from '@pairsystems/goodmem-ai-sdk';
 
-const { searchMemories } = goodmemTools({
-  apiKey: process.env.GOODMEM_API_KEY!,
-  baseUrl: process.env.GOODMEM_BASE_URL!,
-  spaceId: '<space-uuid>',
-});
+const { searchMemories } = goodmemTools({ spaceId: '<space-uuid>' });
 const tools = { searchMemories };
 ```
 
@@ -120,8 +150,6 @@ import { generateText } from 'ai';
 import { withGoodmem } from '@pairsystems/goodmem-ai-sdk';
 
 const model = withGoodmem(openai('gpt-4o'), {
-  apiKey: process.env.GOODMEM_API_KEY!,
-  baseUrl: process.env.GOODMEM_BASE_URL!,
   spaceId: '<space-uuid>',
   scope: { userId: 'u-123' },
 });
@@ -137,26 +165,26 @@ console.log(providerMetadata?.goodmem);
 
 By default the memories are appended to the leading system message (one is
 added if there is none), under the heading "Relevant memories from GoodMem,
-most relevant first". Two options change that:
+most relevant first". The middleware takes the shared configuration plus:
 
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `position` | `'system'` | `'user'` prepends the memories to the latest user message instead. |
 | `template` | the result's `context` | `(retrieved) => string` builds the injected text; return `''` to inject nothing. |
+| `skipMemoryOnError` | `true` | When GoodMem is unavailable, call the model anyway (flagged) instead of failing the call. See below. |
+| `retrievalTimeoutMs` | `5000` | Upper bound on each call's memory lookup, space lookup included. Only the middleware uses it; everything else keeps `timeoutMs`. |
 
 ```ts
 import { openai } from '@ai-sdk/openai';
 import { withGoodmem, type RetrieveMemoriesResult } from '@pairsystems/goodmem-ai-sdk';
 
 const model = withGoodmem(openai('gpt-4o'), {
-  apiKey: process.env.GOODMEM_API_KEY!,
-  baseUrl: process.env.GOODMEM_BASE_URL!,
   spaceId: '<space-uuid>',
   position: 'user',
   template: (retrieved: RetrieveMemoriesResult) =>
     retrieved.results.length
       ? `<memories>\n${retrieved.results.map((r) => `- ${r.text.trim()}`).join('\n')}\n</memories>`
-      : '',
+      : retrieved.context, // '' when nothing was found; the failure note when the lookup failed
 });
 ```
 
@@ -170,6 +198,35 @@ The outcome of each call's search is on the result as
 `providerMetadata.goodmem`: `partial`, `resultCount`, `memoryIds` and
 `statuses`. It works the same way with `streamText`.
 
+### When GoodMem is unavailable
+
+A memory service being down should not take the chat down with it. With
+`skipMemoryOnError` on (the default), a lookup that fails because GoodMem is
+unavailable -- the server cannot be reached, the lookup takes longer than
+`retrievalTimeoutMs`, the server answers HTTP 5xx, 429 or 408, or the response
+is broken -- does not fail the call. Instead:
+
+- the model is called, with a note that memory retrieval failed and that
+  relevant memories may exist, so it never tells the user they have none;
+- the call's `warnings` include a GoodMem warning, and the logger gets a
+  warning line;
+- `providerMetadata.goodmem` is `{ partial: true, resultCount: 0, memoryIds: [], statuses }`,
+  with one status whose `code` is `RETRIEVAL_FAILED` (exported as
+  `RETRIEVAL_FAILED_CODE`) and whose `message` says what failed.
+
+Failures that will not fix themselves still throw, whatever the setting:
+configuration errors, HTTP 400, 401, 403 and 404 (a rejected key, a missing
+space, an invalid filter), and your own abort signal. Hiding those would mean
+memory silently never works. Set `skipMemoryOnError: false` to fail the call on
+every failure instead.
+
+The server embeds each query with the space's embedder before it can search,
+so `retrievalTimeoutMs` covers that too. A fast hosted embedder answers well
+within the 5 s default (Voyage took about 0.3 s against the test server), but a
+slow one may not: Qwen3 through OpenRouter took anywhere from 1 s to over 30 s
+on the same server. With a slow embedder, raise `retrievalTimeoutMs`, or expect
+some calls to go ahead without memories, flagged as above.
+
 ## Helpers
 
 For your own code, three functions take the same configuration:
@@ -178,11 +235,7 @@ For your own code, three functions take the same configuration:
 import { addMemories, retrieveMemories, searchMemories, type GoodmemConfig } from '@pairsystems/goodmem-ai-sdk';
 import { readFile } from 'node:fs/promises';
 
-const goodmem: GoodmemConfig = {
-  apiKey: process.env.GOODMEM_API_KEY!,
-  baseUrl: process.env.GOODMEM_BASE_URL!,
-  spaceId: '<space-uuid>',
-};
+const goodmem: GoodmemConfig = { spaceId: '<space-uuid>' };
 
 // Store text, and a PDF as bytes, then wait until both are searchable.
 await addMemories(
@@ -242,8 +295,6 @@ import { goodmemTools } from '@pairsystems/goodmem-ai-sdk';
 
 function toolsFor(userId: string) {
   return goodmemTools({
-    apiKey: process.env.GOODMEM_API_KEY!,
-    baseUrl: process.env.GOODMEM_BASE_URL!,
     space: { name: 'assistant-memory', embedderId: '<embedder-uuid>' },
     scope: { userId },
   });
@@ -269,20 +320,27 @@ GoodMem retrieval status contract:
 | A problem, and no results | Empty results, `partial: true`, `statuses`, `warning`, a warning logged -- never a silent empty success. |
 | A status code this version does not know | Reported as `UNKNOWN`, `partial: true`; results kept. |
 | The result stream broke off part-way | What arrived, plus a `MALFORMED_STREAM` status. |
-| No response: unreachable server, timeout, HTTP error | Throws `GoodMemError`. |
+| No usable response: unreachable server, timeout, HTTP error | Helpers throw `GoodMemError`; tools throw it, and the AI SDK hands the model a tool error. The middleware: see below. |
 
 The middleware follows the same rules. A degraded search still injects what
 arrived, the injected text says memories may be missing (or that retrieval
 failed, when nothing came back), the warning is added to the call's
-`warnings`, and `providerMetadata.goodmem.partial` is `true`. An unreachable
-server, a timeout or an HTTP error fails the call with `GoodMemError`: the
-model is never quietly called with no memories.
+`warnings`, and `providerMetadata.goodmem.partial` is `true`. When the lookup
+gets no usable response at all:
+
+| Failure | Middleware, `skipMemoryOnError: true` (default) | `skipMemoryOnError: false` |
+| --- | --- | --- |
+| Unreachable server, lookup over `retrievalTimeoutMs`, HTTP 5xx / 429 / 408, broken response | The call goes ahead with the "retrieval failed" note, a warning, a logged warning, and a `RETRIEVAL_FAILED` status in `providerMetadata.goodmem` | Throws `GoodMemError` |
+| HTTP 400 / 401 / 403 / 404, a configuration error | Throws | Throws |
+| Your own abort signal | Rethrows the abort | Rethrows the abort |
+
+Either way the model is never quietly called as if there were no memories.
 
 ## Errors
 
 | Error | Raised when | Carries |
 | --- | --- | --- |
-| `GoodMemError` | A request failed. | `statusCode` and `body` (the server's response, verbatim) when the server answered; `timedOut` when `timeoutMs` was reached. The message quotes the server's explanation. |
+| `GoodMemError` | A request failed. | `statusCode` and `body` (the server's response, verbatim) when the server answered; `timedOut` when the time limit was reached; `isRetryable`, true for availability failures (unreachable, timed out, HTTP 5xx / 429 / 408, broken response) that may go away on their own. The message quotes the server's explanation. |
 | `GoodMemConfigError` | The configuration or an argument cannot be used. | The option at fault and what to pass instead. |
 | `GoodMemIngestionError` | An `addMemories` write failed part-way. | `createdMemoryIds` (already stored) and `failedIndex` (where to resume). |
 | `GoodMemIndexingError` | A `waitForIndexing` wait did not end in success. | `memoryIds`, `failedMemoryIds`, `pendingMemoryIds`. |
@@ -326,8 +384,6 @@ const recentFromAcme = filters.allOf(
 );
 
 await searchMemories('pricing decisions', {
-  apiKey: process.env.GOODMEM_API_KEY!,
-  baseUrl: process.env.GOODMEM_BASE_URL!,
   spaceId: '<space-uuid>',
   filter: recentFromAcme,
 });
@@ -370,9 +426,13 @@ both builds work on any Node 20.
 
 ## Security
 
-- The API key is sent only as the `x-api-key` header. It is not stored on
-  anything this package returns: tools, wrapped models, results and errors
-  can be logged or serialised without leaking it.
+- The API key, whether passed as `apiKey` or read from `GOODMEM_API_KEY`, is
+  sent only as the `x-api-key` header. It is not stored on anything this
+  package returns: tools, wrapped models, results and errors can be logged or
+  serialised without leaking it.
+- The only environment variables read are `GOODMEM_API_KEY` and
+  `GOODMEM_BASE_URL`, each only when its option is omitted, so an explicit
+  configuration is never redirected by the environment.
 - TLS certificate verification is never disabled by this package. For a
   private CA, pass a `fetch` configured with it.
 - No file-system path is read, so no model output can make the package open a
@@ -387,7 +447,7 @@ These are the commands CI runs:
 ```bash
 npm ci
 npx tsc --noEmit        # types
-npm test                # offline suite: no network, no environment
+npm test                # offline suite: no network; sets and clears the GOODMEM_ variables it tests
 npm run build           # CommonJS + ES module builds and types in lib/
 npm run check:readme    # README examples type-check; named identifiers exist
 npm run test:live       # live suite; skips without credentials
@@ -395,8 +455,9 @@ npm run test:live       # live suite; skips without credentials
 
 CI also runs the gates in `.github/workflows/ci.yml`: no credential-shaped
 string in any tracked file, no TLS-verification bypass anywhere, no direct
-HTTP calls or environment reads in `src/`, and the built package installed
-into a clean directory and loaded with both `require` and `import`.
+HTTP calls in `src/`, environment reads only in `src/env.ts` and only of
+`GOODMEM_API_KEY` and `GOODMEM_BASE_URL`, and the built package installed into
+a clean directory and loaded with both `require` and `import`.
 
 The live suite needs a running GoodMem server:
 
@@ -419,8 +480,8 @@ the post-teardown server listing to a file.
 
 | Suite | Count | Needs |
 | --- | --- | --- |
-| `tests/goodmem_test.ts` | 77 | Nothing. The real GoodMem SDK over a fake `fetch` replaying responses captured from server v1.0.323, and the real `ai` package driving the tools and middleware with its mock language model. |
-| `tests/goodmem_live_test.ts` | 21 | `GOODMEM_API_KEY`, `GOODMEM_BASE_URL`, `GOODMEM_TEST_EMBEDDER_ID`; skips without them. |
+| `tests/goodmem_test.ts` | 107 | Nothing. The real GoodMem SDK over a fake `fetch` replaying responses captured from server v1.0.323, and the real `ai` package driving the tools and middleware with its mock language model. |
+| `tests/goodmem_live_test.ts` | 24 | `GOODMEM_API_KEY`, `GOODMEM_BASE_URL`, `GOODMEM_TEST_EMBEDDER_ID`; skips without them. |
 
 ## License
 
