@@ -17,7 +17,6 @@ import { inspect } from 'node:util';
 import { describe, it } from 'node:test';
 
 import { generateText, stepCountIs, streamText } from 'ai';
-import { MockLanguageModelV3 } from 'ai/test';
 
 import {
   addMemories,
@@ -38,6 +37,7 @@ import {
 import { MAX_SPACES_SCANNED } from '../src/config';
 import { decodeContent, orientScore } from '../src/results';
 import { FakeGoodmem, fixture, FIXTURES, hang, jsonResponse, manifest, replay } from './support/fake-goodmem';
+import { scriptedModel, streamingModel, systemText, textResult, toolCall, toolResultsIn } from './support/models';
 
 const ROOT = join(__dirname, '..');
 const BASE = 'https://goodmem.test';
@@ -74,61 +74,6 @@ function setup(overrides: Partial<GoodmemConfig> = {}) {
   return { fake, logs, config };
 }
 
-const USAGE = {
-  inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },
-  outputTokens: { total: 5, text: 5, reasoning: 0 },
-};
-
-function textResult(text: string) {
-  return { content: [{ type: 'text', text }], finishReason: { unified: 'stop', raw: undefined }, usage: USAGE, warnings: [] };
-}
-
-function toolCall(toolName: string, input: unknown, toolCallId = 'call-1') {
-  return {
-    content: [{ type: 'tool-call', toolCallId, toolName, input: JSON.stringify(input) }],
-    finishReason: { unified: 'tool-calls', raw: undefined },
-    usage: USAGE,
-    warnings: [],
-  };
-}
-
-/** The AI SDK's mock model, answering each step from a script. */
-function scriptedModel(...steps: Array<(prompt: any[]) => unknown>) {
-  let step = 0;
-  return new MockLanguageModelV3({
-    doGenerate: (async (options: any) => {
-      const next = steps[Math.min(step, steps.length - 1)];
-      step += 1;
-      return next(options.prompt);
-    }) as any,
-  });
-}
-
-function streamingModel() {
-  return new MockLanguageModelV3({
-    doStream: (async () => ({
-      stream: new ReadableStream({
-        start(controller) {
-          controller.enqueue({ type: 'stream-start', warnings: [] });
-          controller.enqueue({ type: 'text-start', id: 't' });
-          controller.enqueue({ type: 'text-delta', id: 't', delta: 'ok' });
-          controller.enqueue({ type: 'text-end', id: 't' });
-          controller.enqueue({ type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage: USAGE });
-          controller.close();
-        },
-      }),
-    })) as any,
-  });
-}
-
-/** Tool results the AI SDK passed back to the model, from the prompt it saw. */
-function toolResultsIn(prompt: any[]): any[] {
-  return prompt
-    .filter((m) => m.role === 'tool')
-    .flatMap((m) => m.content)
-    .filter((p: any) => p.type === 'tool-result');
-}
-
 function lines(name: string): string[] {
   return fixture(name).toString('utf8').split('\n').filter(Boolean);
 }
@@ -136,10 +81,6 @@ function lines(name: string): string[] {
 function ndjson(body: string[] | string, status = 200): Response {
   const text = Array.isArray(body) ? `${body.join('\n')}\n` : body;
   return new Response(text, { status, headers: { 'content-type': 'application/x-ndjson; charset=utf-8' } });
-}
-
-function systemText(prompt: any[]): string {
-  return prompt.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
 }
 
 async function rejectsWith<T extends Error>(promise: Promise<unknown>, check: (e: T) => void) {

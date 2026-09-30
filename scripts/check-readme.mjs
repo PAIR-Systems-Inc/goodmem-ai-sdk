@@ -95,6 +95,7 @@ if (!compileOnly) {
   const ALLOW = new Set([
     // environment variables read by the live test suite, not by the package
     'GOODMEM_API_KEY', 'GOODMEM_BASE_URL', 'GOODMEM_TEST_EMBEDDER_ID', 'GOODMEM_TEST_RERANKER_ID',
+    'GOODMEM_TEST_LATENCY_EMBEDDER_ID', 'GOODMEM_TEARDOWN_REPORT',
   ]);
   const prose = readme.replace(/^```[\s\S]*?^```$/gm, '');
   const spans = [...prose.matchAll(/`([^`\n]+)`/g)].map((m) => m[1].trim());

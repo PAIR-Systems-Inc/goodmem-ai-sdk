@@ -152,9 +152,9 @@ const model = withGoodmem(openai('gpt-4o'), {
 
 Only the request sent to the model is changed. Your messages are never
 modified, so injected memories are not saved into your chat history. A call
-with no user text (for example a tool-result step with no user message) is
+whose latest user message has no text (or that has no user message at all) is
 passed through without a search. The search runs once per model call, so in a
-multi-step tool loop it runs for each step.
+multi-step tool loop it runs again, with the same user message, for each step.
 
 The outcome of each call's search is on the result as
 `providerMetadata.goodmem`: `partial`, `resultCount`, `memoryIds` and
@@ -206,7 +206,8 @@ Nothing waits or polls unless you ask. `waitForIndexing: true` (or
 memories it just created until they finish indexing. If one fails processing
 or the wait runs out, it throws `GoodMemIndexingError`, which lists
 `failedMemoryIds` and `pendingMemoryIds` and says the writes themselves
-succeeded. Searches never poll: an empty space answers at once.
+succeeded. Searches never poll or wait: each makes one request and returns
+what the server sends, so an empty space costs a single round trip.
 
 ## Spaces and scoping
 
@@ -215,11 +216,13 @@ Choose exactly one of:
 - `spaceId: '<uuid>'` -- one space for reads and writes.
 - `spaceIds: ['<uuid>', ...]` -- search several spaces; writes go to the first.
 - `space: { name, embedderId }` -- use the space with exactly this name, or
-  create it with this embedder if there is none. The whole space listing is
-  paged through, so a match on a later page is found; an existing space is
-  reused only if it uses `embedderId` (a space's embedder cannot be changed
-  after creation), and two visible spaces with the name are refused as
-  ambiguous. The embedder is never chosen for you.
+  create it with this embedder if there is none. Every page of the listing is
+  read, so a match on a later page is found, and a listing that never ends is
+  refused rather than cut short. An existing space is reused only if it uses
+  `embedderId` (a space's embedder cannot be changed after creation), and two
+  visible spaces with the name are refused as ambiguous. The embedder is never
+  chosen for you. The lookup runs the first time each configuration object is
+  used and is then remembered for that object.
 
 For per-user or per-session memory, either give each user their own space
 (GoodMem enforces access per space) or share a space and set `scope`:
@@ -262,8 +265,8 @@ The middleware follows the same rules. A degraded search still injects what
 arrived, the injected text says memories may be missing (or that retrieval
 failed, when nothing came back), the warning is added to the call's
 `warnings`, and `providerMetadata.goodmem.partial` is `true`. An unreachable
-server or a timeout fails the call: the model is never quietly called with no
-memories.
+server, a timeout or an HTTP error fails the call with `GoodMemError`: the
+model is never quietly called with no memories.
 
 ## Errors
 
@@ -288,9 +291,9 @@ and they are not comparable:
   and more negative is a closer match. `score` is its negation, so higher is
   better; `rawScore` keeps the server's value.
 - `scoreKind: 'reranker'` -- set when the reranking stage produced the results.
-  Already higher-is-better, on a scale that depends on the reranker (measured
-  on the same five documents: Voyage `rerank-2.5` gave 0.27 to 0.93, Jina
-  `jina-reranker-v3` gave -0.14 to 0.43). `score` equals `rawScore`.
+  Already higher-is-better, on a scale that depends on the reranker (on the
+  same five documents and GoodMem server, Voyage `rerank-2.5` scored 0.27 to
+  0.93 and Jina `jina-reranker-v3` -0.14 to 0.43). `score` equals `rawScore`.
 
 The kind is read from the result stream, so if a configured reranker fails,
 the vector scores that come back are still labelled `vector`. Neither kind is
@@ -337,11 +340,18 @@ a live server:
 
 | | Supported | Verified |
 | --- | --- | --- |
-| `ai` | `^6.0.0 \|\| ^7.0.0` | 6.0.0, 6.0.297, 7.0.0 and 7.0.123: types, the full offline suite and the README examples |
-| `zod` | `^3.25.76 \|\| ^4.1.8` | 3.25.76 (with `ai` 6) and 4.x (with `ai` 7) |
-| Node | `>=20` | 20 and 22 in CI |
+| `ai` | `^6.0.0 \|\| ^7.0.0` | 6.0.0, 6.0.297, 7.0.0 and 7.0.123 |
+| `zod` | `^3.25.76 \|\| ^4.1.8` | 3.25.76, 4.1.8 and 4.6.5 |
+| Node | `>=20` | 20 and 24 locally; 20 and 22 in CI |
 | GoodMem server | | v1.0.323 (live suite) |
 | `@pairsystems/goodmem` | `^0.1.9` | 0.1.9 |
+
+Each verified combination ran the type check (package and tests), the whole
+offline suite -- which drives the tools and middleware through that `ai`
+version's own `generateText`, `streamText` and mock model -- the README check
+against the built types, and a clean install loaded with both `require` and
+`import`. The floors are tested, not assumed: `ai` 6.0.0 with `zod` 3.25.76,
+and `ai` 7.0.0.
 
 `ai` 7 itself requires Node 22 and ships only ES modules. This package ships
 both CommonJS and ES module builds; `require()` of it with `ai` 7 relies on
@@ -385,17 +395,22 @@ GOODMEM_BASE_URL=http://localhost:8080 GOODMEM_API_KEY=... \
 GOODMEM_TEST_EMBEDDER_ID=<embedder-uuid> npm run test:live
 ```
 
-It creates its spaces under a unique run id (and one temporary embedder with
-an unreachable endpoint, to produce a real `EMBEDDER_FAILED`), deletes all of
-them afterwards, and then asserts against a fresh listing that none is left.
-Set `GOODMEM_TEST_RERANKER_ID` to include the reranker checks.
+It creates its spaces through the package under a unique run id (and one
+temporary embedder with an unreachable endpoint, to produce a real
+`EMBEDDER_FAILED`), deletes all of them afterwards, and then asserts against a
+fresh listing that none is left. Set `GOODMEM_TEST_RERANKER_ID` to include the
+reranker checks. The empty-space check requires a search to finish in under a
+second with one request; since the server embeds every query, a slow hosted
+embedder can dominate that time, and `GOODMEM_TEST_LATENCY_EMBEDDER_ID` points
+that one check at a faster embedder. `GOODMEM_TEARDOWN_REPORT=<file>` writes
+the post-teardown server listing to a file.
 
 ## Tests
 
 | Suite | Count | Needs |
 | --- | --- | --- |
 | `tests/goodmem_test.ts` | 77 | Nothing. The real GoodMem SDK over a fake `fetch` replaying responses captured from server v1.0.323, and the real `ai` package driving the tools and middleware with its mock language model. |
-| `tests/goodmem_live_test.ts` | 0 | `GOODMEM_API_KEY`, `GOODMEM_BASE_URL`, `GOODMEM_TEST_EMBEDDER_ID`; skips without them. |
+| `tests/goodmem_live_test.ts` | 21 | `GOODMEM_API_KEY`, `GOODMEM_BASE_URL`, `GOODMEM_TEST_EMBEDDER_ID`; skips without them. |
 
 ## License
 

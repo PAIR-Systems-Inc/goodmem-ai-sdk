@@ -32,7 +32,7 @@ export function fixture(name: string): Buffer {
 export function replay(name: string, bytes: Uint8Array = fixture(name)): Response {
   const entry = manifest.files[name];
   if (!entry) throw new Error(`fixture ${name} is not in the manifest`);
-  return new Response(bytes, {
+  return new Response(Uint8Array.from(bytes), {
     status: entry.status,
     headers: { 'content-type': entry.contentType ?? 'application/octet-stream' },
   });
