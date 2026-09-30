@@ -121,14 +121,24 @@ jobs:
           fi
           echo "Nothing disables TLS verification."
 
-      - name: src reaches GoodMem only through the SDK and reads no environment
+      - name: src reaches GoodMem only through the SDK; only src/env.ts reads the environment, for two variables
         run: |
           set -euo pipefail
-          if grep -rnE '\bfetch\(|XMLHttpRequest|node:https?|axios|undici|process\.env' src; then
-            echo "src/ must talk to GoodMem only through @pairsystems/goodmem and take configuration only from its caller."
+          if grep -rnE '\bfetch\(|XMLHttpRequest|node:https?|axios|undici' src; then
+            echo "src/ must talk to GoodMem only through @pairsystems/goodmem."
             exit 1
           fi
-          echo "src/ uses the GoodMem SDK only and reads no environment variables."
+          if grep -rnE '\bprocess[[:space:]]*(\.|\?\.|\[)|import\.meta\.env|Deno\.env|Bun\.env' --exclude=env.ts src; then
+            echo "Only src/env.ts may read the environment."
+            exit 1
+          fi
+          # Every use of process in env.ts, comments aside, must be one of these.
+          READS="$(grep -vE '^[[:space:]]*(\*|//|/\*)' src/env.ts | grep -oE '\bprocess\b[^[:space:];,)]*' | sort -u | tr '\n' ' ')"
+          if [ "$READS" != "process process.env.GOODMEM_API_KEY process.env.GOODMEM_BASE_URL " ]; then
+            echo "src/env.ts may read only GOODMEM_API_KEY and GOODMEM_BASE_URL; found: $READS"
+            exit 1
+          fi
+          echo "src/ uses the GoodMem SDK only; the environment is read only in src/env.ts, for GOODMEM_API_KEY and GOODMEM_BASE_URL."
 
       - name: publicRead is never sent
         run: |

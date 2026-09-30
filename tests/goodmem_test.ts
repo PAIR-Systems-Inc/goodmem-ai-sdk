@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inspect } from 'node:util';
+import { runInNewContext } from 'node:vm';
 import { describe, it } from 'node:test';
 
 import { generateText, stepCountIs, streamText } from 'ai';
@@ -35,6 +36,7 @@ import {
   type GoodmemConfig,
 } from '../src/index';
 import { MAX_SPACES_SCANNED } from '../src/config';
+import { environmentDefaults } from '../src/env';
 import { decodeContent, orientScore } from '../src/results';
 import { FakeGoodmem, fixture, FIXTURES, hang, jsonResponse, manifest, replay } from './support/fake-goodmem';
 import { scriptedModel, streamingModel, systemText, textResult, toolCall, toolResultsIn } from './support/models';
@@ -94,6 +96,23 @@ async function rejectsWith<T extends Error>(promise: Promise<unknown>, check: (e
   check(caught as T);
 }
 
+/** Run `fn` with environment variables set (a string) or removed (undefined), then restore them. */
+async function withEnv<T>(vars: Record<string, string | undefined>, fn: () => T | Promise<T>): Promise<T> {
+  const saved = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
+  const apply = (values: Record<string, string | undefined>) => {
+    for (const [k, v] of Object.entries(values)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  };
+  apply(vars);
+  try {
+    return await fn();
+  } finally {
+    apply(saved);
+  }
+}
+
 // --------------------------------------------------------------- fixtures --
 
 describe('fixtures', () => {
@@ -117,11 +136,23 @@ describe('fixtures', () => {
 // ---------------------------------------------------------- configuration --
 
 describe('configuration', () => {
-  it('requires apiKey, baseUrl and exactly one space option, naming what is missing', () => {
+  it('requires apiKey, baseUrl and exactly one space option, naming what is missing', async () => {
     const fake = new FakeGoodmem();
     const base = { apiKey: KEY, baseUrl: BASE, spaceId: SPACE, fetch: fake.fetch };
-    assert.throws(() => goodmemTools({ ...base, apiKey: '' }), (e: any) => GoodMemConfigError.isInstance(e) && /apiKey is required/.test(e.message));
-    assert.throws(() => goodmemTools({ ...base, baseUrl: '' }), /baseUrl is required.*no default/);
+    await withEnv({ GOODMEM_API_KEY: undefined, GOODMEM_BASE_URL: undefined }, () => {
+      assert.throws(
+        () => goodmemTools({ ...base, apiKey: undefined }),
+        (e: any) =>
+          GoodMemConfigError.isInstance(e) &&
+          /^goodmemTools: apiKey is required: pass apiKey, or set the GOODMEM_API_KEY environment variable\. Get an instance URL and API key from GoodMem Cloud at https:\/\/cloud\.goodmem\.ai\/login .*or self-host: https:\/\/docs\.goodmem\.ai\.$/.test(e.message)
+      );
+      assert.throws(
+        () => goodmemTools({ ...base, baseUrl: undefined }),
+        /baseUrl is required: pass baseUrl, or set the GOODMEM_BASE_URL environment variable, e\.g\. https:\/\/gm-<name>-<id>\.cloud\.goodmem\.ai or http:\/\/localhost:8080\. There is no default server\. Get an instance URL and API key from GoodMem Cloud at https:\/\/cloud\.goodmem\.ai\/login/
+      );
+    });
+    assert.throws(() => goodmemTools({ ...base, apiKey: '' }), /apiKey is empty: .*or omit apiKey to use GOODMEM_API_KEY/);
+    assert.throws(() => goodmemTools({ ...base, baseUrl: ' ' }), /baseUrl is empty: .*or omit baseUrl to use GOODMEM_BASE_URL/);
     assert.throws(() => goodmemTools({ ...base, baseUrl: 'localhost:8080' }), /http:\/\/ or https:\/\//);
     assert.throws(() => goodmemTools({ apiKey: KEY, baseUrl: BASE } as GoodmemConfig), /a space is required.*never chooses a space/);
     assert.throws(() => goodmemTools({ ...base, spaceIds: [SPACE] }), /only one of spaceId, spaceIds and space/);
@@ -130,23 +161,6 @@ describe('configuration', () => {
       () => goodmemTools({ ...base, spaceId: undefined, space: { name: 'x' } as any }),
       /space must be \{ name, embedderId \}.*never picked for you/
     );
-  });
-
-  it('has no default server and never reads the environment', () => {
-    const saved = { key: process.env.GOODMEM_API_KEY, url: process.env.GOODMEM_BASE_URL };
-    process.env.GOODMEM_API_KEY = 'gm_from_environment';
-    process.env.GOODMEM_BASE_URL = 'http://environment.invalid';
-    try {
-      assert.throws(() => goodmemTools({ spaceId: SPACE } as GoodmemConfig), /apiKey is required/);
-    } finally {
-      if (saved.key === undefined) delete process.env.GOODMEM_API_KEY;
-      else process.env.GOODMEM_API_KEY = saved.key;
-      if (saved.url === undefined) delete process.env.GOODMEM_BASE_URL;
-      else process.env.GOODMEM_BASE_URL = saved.url;
-    }
-    for (const file of readdirSync(join(ROOT, 'src'))) {
-      assert.doesNotMatch(readFileSync(join(ROOT, 'src', file), 'utf8'), /process\.env/, file);
-    }
   });
 
   it('rejects unknown options instead of ignoring a typo', () => {
@@ -180,6 +194,114 @@ describe('configuration', () => {
     const { config } = setup();
     assert.throws(() => withGoodmem('openai/gpt-4o' as any, config), /language model instance/);
     assert.throws(() => withGoodmem(streamingModel(), { ...config, position: 'middle' as any }), /position must be 'system' or 'user'/);
+  });
+});
+
+// ---------------------------------------------------- environment fallback --
+
+describe('environment fallback (GOODMEM_API_KEY, GOODMEM_BASE_URL)', () => {
+  const ENV_KEY = 'gm_environment_test_key';
+  const ENV_URL = 'https://env.goodmem.test';
+
+  it('uses both variables when the options are omitted', async () => {
+    const fake = new FakeGoodmem().on('POST', '/v1/memories:retrieve', 'retrieve_ok.ndjson');
+    await withEnv({ GOODMEM_API_KEY: ENV_KEY, GOODMEM_BASE_URL: ENV_URL }, () =>
+      searchMemories('canary', { spaceId: SPACE, fetch: fake.fetch })
+    );
+    assert.equal(fake.requests[0].url.origin, ENV_URL);
+    assert.equal(fake.requests[0].headers.get('x-api-key'), ENV_KEY);
+  });
+
+  it('an explicit option always wins over the environment', async () => {
+    const fake = new FakeGoodmem().on('POST', '/v1/memories:retrieve', 'retrieve_ok.ndjson');
+    await withEnv({ GOODMEM_API_KEY: ENV_KEY, GOODMEM_BASE_URL: ENV_URL }, () =>
+      searchMemories('canary', { apiKey: KEY, baseUrl: BASE, spaceId: SPACE, fetch: fake.fetch })
+    );
+    assert.equal(fake.requests[0].url.origin, BASE);
+    assert.equal(fake.requests[0].headers.get('x-api-key'), KEY);
+  });
+
+  it('each option falls back on its own, and an explicit empty value never does', async () => {
+    const fake = new FakeGoodmem().on('POST', '/v1/memories:retrieve', 'retrieve_ok.ndjson');
+    await withEnv({ GOODMEM_API_KEY: ENV_KEY, GOODMEM_BASE_URL: ENV_URL }, async () => {
+      await searchMemories('canary', { apiKey: KEY, spaceId: SPACE, fetch: fake.fetch });
+      assert.throws(() => goodmemTools({ apiKey: '', spaceId: SPACE, fetch: fake.fetch }), /apiKey is empty/);
+    });
+    assert.equal(fake.requests[0].url.origin, ENV_URL);
+    assert.equal(fake.requests[0].headers.get('x-api-key'), KEY);
+  });
+
+  it('neither option nor variable: the error names the option, the variable and where to get one', async () => {
+    await withEnv({ GOODMEM_API_KEY: undefined, GOODMEM_BASE_URL: undefined }, async () => {
+      await assert.rejects(searchMemories('q', { spaceId: SPACE }), (e: any) => {
+        assert.ok(GoodMemConfigError.isInstance(e));
+        assert.match(e.message, /apiKey is required: pass apiKey, or set the GOODMEM_API_KEY environment variable/);
+        assert.match(e.message, /https:\/\/cloud\.goodmem\.ai\/login/);
+        return true;
+      });
+      assert.throws(
+        () => withGoodmem(streamingModel(), { apiKey: KEY, spaceId: SPACE }),
+        /withGoodmem: baseUrl is required: pass baseUrl, or set the GOODMEM_BASE_URL environment variable.*https:\/\/cloud\.goodmem\.ai\/login/
+      );
+    });
+  });
+
+  it('a malformed GOODMEM_BASE_URL is reported as coming from the environment', async () => {
+    await withEnv({ GOODMEM_API_KEY: ENV_KEY, GOODMEM_BASE_URL: 'not a url' }, () => {
+      assert.throws(() => goodmemTools({ spaceId: SPACE }), /baseUrl "not a url" \(from GOODMEM_BASE_URL\) is not a valid URL/);
+    });
+  });
+
+  it('a key from the environment never appears in tools, wrapped models, results or errors', async () => {
+    const fake = new FakeGoodmem().on('POST', '/v1/memories:retrieve', 'error_retrieve_missing_space.json');
+    await withEnv({ GOODMEM_API_KEY: ENV_KEY, GOODMEM_BASE_URL: ENV_URL }, async () => {
+      const config = { spaceId: SPACE, fetch: fake.fetch };
+      let error: unknown;
+      try {
+        await searchMemories('x', config);
+      } catch (e) {
+        error = e;
+      }
+      const dumps = [
+        JSON.stringify(goodmemTools(config)),
+        inspect(goodmemTools(config), { depth: 10, showHidden: true }),
+        inspect(withGoodmem(streamingModel(), config), { depth: 10, showHidden: true }),
+        inspect(error, { depth: 10, showHidden: true }),
+        JSON.stringify(error),
+      ];
+      for (const dump of dumps) assert.ok(!dump.includes(ENV_KEY), 'the environment key leaked');
+    });
+  });
+
+  it('runtimes without a Node environment, or that refuse access to it, get no fallback', () => {
+    // The function's own compiled source, run where `process` is missing,
+    // refuses access, or exists. Results are compared as JSON: they come from
+    // another realm.
+    const run = (sandbox: object) => JSON.parse(JSON.stringify(runInNewContext(`(${environmentDefaults.toString()})()`, sandbox)));
+    assert.deepEqual(run({}), {}, 'no process global');
+    const locked = { process: { get env() { throw new Error('Requires env access'); } } };
+    assert.deepEqual(run(locked), {}, 'env access refused');
+    assert.deepEqual(run({ process: {} }), {}, 'process without env');
+    const node = { process: { env: { GOODMEM_API_KEY: ' k ', GOODMEM_BASE_URL: '', OTHER: 'x' } } };
+    assert.deepEqual(run(node), { apiKey: 'k' });
+  });
+
+  it('only src/env.ts reads the environment, and only these two variables', () => {
+    for (const file of readdirSync(join(ROOT, 'src'))) {
+      const code = readFileSync(join(ROOT, 'src', file), 'utf8');
+      if (file === 'env.ts') continue;
+      assert.doesNotMatch(code, /\bprocess\s*(\.|\?\.|\[)|import\.meta\.env|Deno\.env|Bun\.env/, file);
+    }
+    const reads = readFileSync(join(ROOT, 'src', 'env.ts'), 'utf8')
+      .split('\n')
+      .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l))
+      .join('\n')
+      .match(/\bprocess\b[^\s;,)]*/g);
+    assert.deepEqual([...new Set(reads)].sort(), [
+      'process',
+      'process.env.GOODMEM_API_KEY',
+      'process.env.GOODMEM_BASE_URL',
+    ]);
   });
 });
 

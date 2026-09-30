@@ -1,14 +1,16 @@
 /**
  * Configuration shared by every entry point, and the connection built from it.
  *
- * There are no environment-variable fallbacks and no default server: the
- * caller's configuration is the only source of the URL and the credential,
- * so two configurations can never silently talk to the same server through a
- * shared default, and the package never picks up a key it was not handed.
+ * There is no default server. `apiKey` and `baseUrl` fall back to the
+ * GOODMEM_API_KEY and GOODMEM_BASE_URL environment variables only when the
+ * option is omitted (see env.ts, the one place the environment is read); an
+ * explicit option always wins, so a configuration that names its server and
+ * key can never be redirected by the environment.
  */
 
 import { Goodmem } from '@pairsystems/goodmem';
 
+import { API_KEY_ENV, BASE_URL_ENV, environmentDefaults, GET_STARTED } from './env.js';
 import { GoodMemConfigError, GoodMemError, wrapError, type ErrorContext } from './errors.js';
 import { allOf, fromMapping, type FilterValue } from './filters.js';
 
@@ -31,10 +33,17 @@ export interface GoodmemLogger {
 
 /** Configuration for every GoodMem entry point in this package. */
 export interface GoodmemConfig {
-  /** The GoodMem API key. Never read from the environment by this package. */
-  apiKey: string;
-  /** The GoodMem server URL, e.g. `http://localhost:8080`. There is no default. */
-  baseUrl: string;
+  /**
+   * The GoodMem API key. When omitted, the `GOODMEM_API_KEY` environment
+   * variable is used; an explicit value always wins.
+   */
+  apiKey?: string;
+  /**
+   * The GoodMem server URL, e.g. `https://gm-<name>-<id>.cloud.goodmem.ai` or
+   * `http://localhost:8080`. When omitted, the `GOODMEM_BASE_URL` environment
+   * variable is used; an explicit value always wins. There is no default server.
+   */
+  baseUrl?: string;
   /** The space to read from and write to. Use one of `spaceId`, `spaceIds` or `space`. */
   spaceId?: string;
   /** Spaces to read from; writes go to the first. */
@@ -80,7 +89,7 @@ export interface GoodmemConfig {
 export const DEFAULT_TOP_K = 5;
 export const MAX_TOP_K = 100;
 export const DEFAULT_TIMEOUT_MS = 30_000;
-const MAX_TIMEOUT_MS = 2_147_483_647;
+export const MAX_TIMEOUT_MS = 2_147_483_647;
 /** Most spaces a lookup by name will page through before giving up. */
 export const MAX_SPACES_SCANNED = 10_000;
 
@@ -140,7 +149,7 @@ export function connect(
   extraKeys: readonly string[] = []
 ): Connection {
   if (!config || typeof config !== 'object') {
-    fail(entry, 'a configuration object is required: { apiKey, baseUrl, spaceId }.');
+    fail(entry, 'a configuration object is required, e.g. { spaceId }, with apiKey and baseUrl passed or set in the environment.');
   }
   const allowed = new Set<string>([...CONFIG_KEYS, ...extraKeys]);
   const unknown = Object.keys(config).filter((k) => !allowed.has(k));
@@ -152,20 +161,38 @@ export function connect(
     );
   }
 
-  if (!nonEmptyString(config.apiKey)) {
-    fail(entry, 'apiKey is required: the API key your GoodMem server issued.');
+  // An omitted (undefined or null) option falls back to the environment; an
+  // explicit value, even an unusable one, never does.
+  const env = environmentDefaults();
+  const omitted = (value: unknown) => value === undefined || value === null;
+  const apiKey = omitted(config.apiKey) ? env.apiKey : config.apiKey;
+  const baseUrl = omitted(config.baseUrl) ? env.baseUrl : config.baseUrl;
+  const baseUrlSource = omitted(config.baseUrl) ? ` (from ${BASE_URL_ENV})` : '';
+
+  if (apiKey === undefined) {
+    fail(entry, `apiKey is required: pass apiKey, or set the ${API_KEY_ENV} environment variable. ${GET_STARTED}.`);
   }
-  if (!nonEmptyString(config.baseUrl)) {
-    fail(entry, 'baseUrl is required: the URL of your GoodMem server, e.g. http://localhost:8080. There is no default.');
+  if (!nonEmptyString(apiKey)) {
+    fail(entry, `apiKey is empty: pass the key your GoodMem server issued, or omit apiKey to use ${API_KEY_ENV}.`);
+  }
+  if (baseUrl === undefined) {
+    fail(
+      entry,
+      `baseUrl is required: pass baseUrl, or set the ${BASE_URL_ENV} environment variable, e.g. ` +
+        `https://gm-<name>-<id>.cloud.goodmem.ai or http://localhost:8080. There is no default server. ${GET_STARTED}.`
+    );
+  }
+  if (!nonEmptyString(baseUrl)) {
+    fail(entry, `baseUrl is empty: pass your GoodMem server's URL, or omit baseUrl to use ${BASE_URL_ENV}.`);
   }
   let url: URL;
   try {
-    url = new URL(config.baseUrl);
+    url = new URL(baseUrl);
   } catch {
-    fail(entry, `baseUrl ${JSON.stringify(config.baseUrl)} is not a valid URL.`);
+    fail(entry, `baseUrl ${JSON.stringify(baseUrl)}${baseUrlSource} is not a valid URL.`);
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    fail(entry, `baseUrl must be an http:// or https:// URL, not ${JSON.stringify(config.baseUrl)}.`);
+    fail(entry, `baseUrl${baseUrlSource} must be an http:// or https:// URL, not ${JSON.stringify(baseUrl)}.`);
   }
 
   const given = (['spaceId', 'spaceIds', 'space'] as const).filter((k) => config[k] !== undefined);
@@ -244,12 +271,11 @@ export function connect(
   }
 
   const client = new Goodmem({
-    baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
+    baseUrl,
+    apiKey,
     timeoutMs,
     ...(config.fetch ? { fetch: config.fetch } : {}),
   });
-  const baseUrl = config.baseUrl;
   const errorContext = (signal?: AbortSignal): ErrorContext => ({ baseUrl, timeoutMs, signal });
 
   let spaceIds: () => Promise<string[]>;
@@ -258,7 +284,7 @@ export function connect(
     spaceIds = async () => [...ids];
   } else {
     const { name, embedderId } = config.space as GoodmemNamedSpace;
-    const key = [config.apiKey, baseUrl, name, embedderId].join('\u0000');
+    const key = [apiKey, baseUrl, name, embedderId].join('\u0000');
     spaceIds = async () => {
       let cached = namedSpaces.get(config);
       if (!cached || cached.key !== key) {
