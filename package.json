@@ -45,6 +45,7 @@
     "zod": "^3.25.76 || ^4.1.8"
   },
   "devDependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.80",
     "@types/node": "^20.19.43",
     "ai": "^7.0.123",
     "npm-run-all": "^4.1.5",

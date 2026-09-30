@@ -19,6 +19,7 @@ import { describe, it } from 'node:test';
 
 import { generateText, stepCountIs, streamText, tool } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { z } from 'zod';
 
 import {
@@ -557,6 +558,69 @@ describe('automatic saving (addMemory, extractionModel, extractFacts)', () => {
     assert.deepEqual(logs.lines, []);
   });
 
+  // OpenAI and Azure refuse response_format {type:'json_object'} unless the
+  // messages contain the word "json": HTTP 400 "'messages' must contain the
+  // word 'json' in some form, to use 'response_format' of type
+  // 'json_object'." OpenAI-compatible providers send exactly that format for
+  // a structured-output call and drop the schema, so the instructions alone
+  // must name JSON and spell out the shape. Found against OpenRouter.
+  it('the extraction instructions name JSON and spell out the exact shape', () => {
+    assert.match(FACT_EXTRACTION_INSTRUCTIONS, /json/i);
+    assert.ok(FACT_EXTRACTION_INSTRUCTIONS.includes('{"facts": ['), 'the output shape is not stated');
+    assert.ok(FACT_EXTRACTION_INSTRUCTIONS.includes('{"facts": []}'), 'the empty answer is not stated');
+    assert.match(FACT_EXTRACTION_INSTRUCTIONS, /no other keys/);
+    assert.match(FACT_EXTRACTION_INSTRUCTIONS, /third person/);
+    assert.match(FACT_EXTRACTION_INSTRUCTIONS, /questions/);
+  });
+
+  it('through an OpenAI-compatible provider: the request asks for json_object, its messages say json, and the answer round-trips', async () => {
+    const { fake, logs, config } = saving();
+    const sent: any[] = [];
+    // Behaves like OpenAI/OpenRouter: rejects json_object unless a message mentions json.
+    const provider = createOpenAICompatible({
+      name: 'fake-openai',
+      baseURL: 'https://llm.test/v1',
+      apiKey: 'test-llm-key',
+      fetch: (async (_url: any, init: any) => {
+        const body = JSON.parse(String(init.body));
+        sent.push(body);
+        const mentionsJson = body.messages.some((m: any) => /json/i.test(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)));
+        if (body.response_format?.type === 'json_object' && !mentionsJson) {
+          return jsonResponse(
+            { error: { message: "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.", type: 'invalid_request_error' } },
+            400
+          );
+        }
+        return jsonResponse({
+          id: 'chatcmpl-test',
+          object: 'chat.completion',
+          created: 1790000000,
+          model: body.model,
+          choices: [{ index: 0, message: { role: 'assistant', content: '{"facts": ["User is vegetarian.", "User lives in Amman."]}' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 120, completion_tokens: 18, total_tokens: 138 },
+        });
+      }) as typeof fetch,
+    });
+    const { model } = memoryModel();
+    const result = await generateText({
+      model: withGoodmem(model, { ...config, addMemory: 'always', extractionModel: provider.chatModel('openai/gpt-4o-mini') }),
+      prompt: "I'm vegetarian and I live in Amman.",
+    });
+    assert.equal(sent.length, 1);
+    const request = sent[0];
+    assert.deepEqual(request.response_format, { type: 'json_object' });
+    assert.deepEqual(request.messages, [
+      { role: 'system', content: FACT_EXTRACTION_INSTRUCTIONS },
+      { role: 'user', content: "I'm vegetarian and I live in Amman." },
+    ]);
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.equal(meta.saveError, undefined, meta.saveError?.message);
+    assert.deepEqual(meta.saved.facts, ['User is vegetarian.', 'User lives in Amman.']);
+    assert.deepEqual(meta.saved.usage, { inputTokens: 120, outputTokens: 18, totalTokens: 138 });
+    assert.equal(fake.calls('POST', '/v1/memories').length, 2);
+    assert.deepEqual(logs.lines, []);
+  });
+
   it('extracts from the latest user message only: no injected memories, no assistant reply, no history', async () => {
     const { config } = saving();
     const { model, extraction } = memoryModel({ facts: [] });
@@ -572,6 +636,7 @@ describe('automatic saving (addMemory, extractionModel, extractFacts)', () => {
     const prompt = extraction[0].prompt as any[];
     assert.equal(prompt.length, 2);
     assert.deepEqual(prompt[0], { role: 'system', content: FACT_EXTRACTION_INSTRUCTIONS });
+    assert.match(prompt[0].content, /json/i, 'the extraction prompt must mention JSON for json_object providers');
     assert.equal(prompt[1].role, 'user');
     assert.deepEqual(prompt[1].content.map((p: any) => p.text), ['I just moved to Irbid.']);
     const all = JSON.stringify(prompt);

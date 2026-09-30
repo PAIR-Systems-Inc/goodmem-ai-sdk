@@ -260,7 +260,10 @@ world, as short third-person sentences ("User is vegetarian."). Each fact is
 stored with the configuration's `scope`, so the next turn finds it. Questions
 and small talk yield nothing. The extraction uses `extractionModel`, or the
 wrapped model itself when that is omitted, called directly rather than through
-the middleware.
+the middleware. The instructions ask for a JSON object of the form
+`{"facts": [...]}` in so many words, because OpenAI-compatible providers send a
+plain JSON mode without the schema for this kind of call, and OpenAI rejects
+that mode unless the messages mention JSON.
 
 What is never saved: the model's replies, its reasoning, streamed output,
 earlier turns, and the memories injected into the prompt. A fact that matches
@@ -542,7 +545,7 @@ the post-teardown server listing to a file.
 
 | Suite | Count | Needs |
 | --- | --- | --- |
-| `tests/goodmem_test.ts` | 125 | Nothing. The real GoodMem SDK over a fake `fetch` replaying responses captured from server v1.0.323, and the real `ai` package driving the tools and middleware with its mock language model. |
+| `tests/goodmem_test.ts` | 127 | Nothing. The real GoodMem SDK over a fake `fetch` replaying responses captured from server v1.0.323, and the real `ai` package driving the tools and middleware with its mock language model. |
 | `tests/goodmem_live_test.ts` | 25 | `GOODMEM_API_KEY`, `GOODMEM_BASE_URL`, `GOODMEM_TEST_EMBEDDER_ID`; skips without them. |
 
 ## License

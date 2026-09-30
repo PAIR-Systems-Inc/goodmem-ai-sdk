@@ -36,16 +36,28 @@ export const MAX_FACTS_PER_TURN = 10;
 /** Longest fact stored, in characters. */
 export const MAX_FACT_LENGTH = 500;
 
-/** The instructions given to the extraction model. */
+/**
+ * The instructions given to the extraction model.
+ *
+ * They name JSON and spell out the exact output shape on purpose. For a
+ * structured-output call, OpenAI-compatible providers send
+ * `response_format: { type: 'json_object' }` and drop the schema, so the model
+ * sees only these instructions; and OpenAI (and Azure, and OpenRouter in
+ * front of them) reject `json_object` with HTTP 400 unless the messages
+ * contain the word "json".
+ */
 export const FACT_EXTRACTION_INSTRUCTIONS = [
   'You pick out facts worth remembering from one message a user wrote to an assistant.',
-  'Return only durable facts the user stated about themselves, their preferences, plans, relationships or their world,',
+  'Respond with only a JSON object of the form {"facts": ["...", "..."]}: a single key "facts" whose value is an array of strings,',
+  'with no other keys and no text before or after the JSON.',
+  'Put in the array only durable facts the user stated about themselves, their preferences, plans, relationships or their world,',
   'that would still be useful in a later conversation.',
   'Write each fact as a short standalone sentence in the third person, starting with "User",',
   'for example "User is vegetarian." or "User\'s daughter is called Lina."',
-  'Do not return questions, requests, instructions to the assistant, greetings or small talk,',
+  'Do not include questions, requests, instructions to the assistant, greetings or small talk,',
   'and do not guess or add anything the user did not say.',
-  'If there is nothing durable to remember, return an empty list.',
+  `Return at most ${MAX_FACTS_PER_TURN} facts.`,
+  'If there is nothing durable to remember, respond with {"facts": []}.',
 ].join(' ');
 
 const FactsSchema = z.object({
