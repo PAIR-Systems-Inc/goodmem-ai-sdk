@@ -83,6 +83,7 @@ describe('live', { skip }, () => {
   let tornDown = false;
 
   let serverVersion = '';
+  const inventoryBefore = { spaces: 0, embedders: 0 };
   let badEmbedderId = '';
   let mainConfig: GoodmemConfig;
   let mainSpaceId = '';
@@ -155,6 +156,8 @@ describe('live', { skip }, () => {
     const allEmbedders = (await admin.embedders.list()).map((e) => ({ embedderId: e.embedderId, displayName: e.displayName }));
     const leftSpaces = allSpaces.filter((s) => s.name.startsWith(RUN) || created.spaces.has(s.spaceId));
     const leftEmbedders = allEmbedders.filter((e) => e.displayName.startsWith(RUN) || created.embedders.has(e.embedderId));
+    // The report names only this run's resources: other spaces on a shared
+    // server are counted, never listed, so it can be kept as evidence.
     const report = {
       run: RUN,
       serverVersion,
@@ -162,10 +165,16 @@ describe('live', { skip }, () => {
       deleted: { spaces: [...created.spaces], embedders: [...created.embedders] },
       deleteFailures: failures,
       leftFromThisRun: { spaces: leftSpaces, embedders: leftEmbedders },
-      freshListing: { spaceCount: allSpaces.length, spaces: allSpaces, embedderCount: allEmbedders.length, embedders: allEmbedders },
+      freshListing: {
+        before: inventoryBefore,
+        after: { spaces: allSpaces.length, embedders: allEmbedders.length },
+        spacesNamedAisdkLive: allSpaces.filter((s) => s.name.startsWith('aisdk-live-')),
+        embeddersNamedAisdkLive: allEmbedders.filter((e) => e.displayName.startsWith('aisdk-live-')),
+      },
     };
     console.log(`# teardown verification: ${JSON.stringify(report.leftFromThisRun)} left from ${RUN}; ` +
-      `${allSpaces.length} spaces and ${allEmbedders.length} embedders on the server`);
+      `server had ${inventoryBefore.spaces} spaces / ${inventoryBefore.embedders} embedders before the run and ` +
+      `${allSpaces.length} / ${allEmbedders.length} after`);
     if (TEARDOWN_REPORT) writeFileSync(TEARDOWN_REPORT, `${JSON.stringify(report, null, 2)}\n`);
     return { failures, leftSpaces, leftEmbedders };
   }
@@ -173,7 +182,9 @@ describe('live', { skip }, () => {
   before(async () => {
     admin = new Goodmem({ baseUrl: BASE!, apiKey: KEY!, timeoutMs: 90_000 });
     serverVersion = (await admin.system.info()).version;
-    console.log(`# GoodMem ${serverVersion} at ${BASE}; run ${RUN}`);
+    for await (const _space of await admin.spaces.list({ maxResults: 1000 })) inventoryBefore.spaces += 1;
+    inventoryBefore.embedders = (await admin.embedders.list()).length;
+    console.log(`# GoodMem ${serverVersion} at ${BASE}; run ${RUN}; ${inventoryBefore.spaces} spaces and ${inventoryBefore.embedders} embedders before`);
 
     const bad = await admin.embedders.create({
       displayName: `${RUN}-unreachable`,
