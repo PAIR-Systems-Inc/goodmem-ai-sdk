@@ -26,6 +26,16 @@ export type {
   GoodmemWrappableModel,
 } from './middleware.js';
 
+export { FACT_EXTRACTION_INSTRUCTIONS } from './autosave.js';
+export type {
+  GoodmemExtractionModel,
+  GoodmemExtractionUsage,
+  GoodmemFactExtractionInput,
+  GoodmemFactExtractor,
+  GoodmemSaveError,
+  GoodmemSaveOutcome,
+} from './autosave.js';
+
 export { retrieveMemories, searchMemories } from './retrieval.js';
 export type { RetrieveMemoriesResult, SearchOptions } from './retrieval.js';
 

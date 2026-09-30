@@ -17,10 +17,13 @@ import { inspect } from 'node:util';
 import { runInNewContext } from 'node:vm';
 import { describe, it } from 'node:test';
 
-import { generateText, stepCountIs, streamText } from 'ai';
+import { generateText, stepCountIs, streamText, tool } from 'ai';
+import { MockLanguageModelV3 } from 'ai/test';
+import { z } from 'zod';
 
 import {
   addMemories,
+  FACT_EXTRACTION_INSTRUCTIONS,
   filters,
   GoodMemConfigError,
   GoodMemError,
@@ -464,6 +467,356 @@ describe('middleware when GoodMem is unavailable (skipMemoryOnError, retrievalTi
       assert.throws(() => withGoodmem(streamingModel(), { ...config, retrievalTimeoutMs }), /retrievalTimeoutMs must be a positive number/);
     }
     assert.throws(() => withGoodmem(streamingModel(), { ...config, skipMemoryOnError: 'yes' as any }), /skipMemoryOnError must be true or false/);
+  });
+});
+
+// ----------------------------------------------------- automatic saving --
+
+describe('automatic saving (addMemory, extractionModel, extractFacts)', () => {
+  const EXTRACTION_USAGE = {
+    inputTokens: { total: 42, noCache: 42, cacheRead: 0, cacheWrite: 0 },
+    outputTokens: { total: 9, text: 9, reasoning: 0 },
+  };
+  const CREATED = () => JSON.parse(fixture('memory_create.json').toString()).memoryId as string;
+
+  /**
+   * One mock model serving both kinds of call: structured-output calls (the
+   * extraction, which asks for JSON) and ordinary calls (the chat).
+   */
+  function memoryModel(options: {
+    facts?: unknown;
+    extraction?: (call: any) => Promise<unknown>;
+    answer?: (prompt: any[]) => unknown;
+  } = {}) {
+    const extraction: any[] = [];
+    const main: any[] = [];
+    const extract = async (call: any) => {
+      extraction.push(call);
+      if (options.extraction) return options.extraction(call);
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ facts: options.facts ?? [] }) }],
+        finishReason: { unified: 'stop', raw: undefined },
+        usage: EXTRACTION_USAGE,
+        warnings: [],
+      };
+    };
+    const model = new MockLanguageModelV3({
+      doGenerate: (async (call: any) => {
+        if (call.responseFormat?.type === 'json') return extract(call);
+        main.push(call);
+        return options.answer ? options.answer(call.prompt) : textResult('ok');
+      }) as any,
+      doStream: (async (call: any) => {
+        main.push(call);
+        return streamingModel().doStream(call);
+      }) as any,
+    });
+    return { model, extraction, main };
+  }
+
+  function saving(overrides: Partial<GoodmemConfig> = {}) {
+    const env = setup({ scope: { userId: 'u-7' }, ...overrides });
+    env.fake.on('POST', '/v1/memories:retrieve', 'retrieve_ok.ndjson').on('POST', '/v1/memories', 'memory_create.json');
+    return env;
+  }
+
+  it('is off by default: no extraction call and nothing stored', async () => {
+    const { fake, config } = saving();
+    const { model, extraction } = memoryModel({ facts: ['User is vegetarian.'] });
+    const result = await generateText({ model: withGoodmem(model, config), prompt: 'I am vegetarian.' });
+    assert.equal(extraction.length, 0);
+    assert.equal(fake.calls('POST', '/v1/memories').length, 0);
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.equal(meta.saved, undefined);
+    assert.equal(meta.saveError, undefined);
+  });
+
+  it("'always': one extraction call per turn, facts stored with the scope, the outcome reported with usage", async () => {
+    const { fake, logs, config } = saving();
+    const { model, extraction, main } = memoryModel({ facts: ['User is vegetarian.', 'User lives in Amman.'] });
+    const result = await generateText({
+      model: withGoodmem(model, { ...config, addMemory: 'always' }),
+      prompt: "I'm vegetarian and I live in Amman. Any dinner ideas?",
+    });
+    assert.equal(result.text, 'ok');
+    assert.equal(main.length, 1);
+    assert.equal(extraction.length, 1);
+    const writes = fake.calls('POST', '/v1/memories').map((r) => r.body);
+    assert.deepEqual(writes, [
+      { spaceId: SPACE, originalContent: 'User is vegetarian.', contentType: 'text/plain', metadata: { userId: 'u-7' } },
+      { spaceId: SPACE, originalContent: 'User lives in Amman.', contentType: 'text/plain', metadata: { userId: 'u-7' } },
+    ]);
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.deepEqual(meta.saved, {
+      facts: ['User is vegetarian.', 'User lives in Amman.'],
+      memoryIds: [CREATED(), CREATED()],
+      duplicates: [],
+      usage: { inputTokens: 42, outputTokens: 9, totalTokens: 51 },
+    });
+    assert.equal(meta.partial, false, 'the retrieval outcome is still reported');
+    assert.deepEqual(logs.lines, []);
+  });
+
+  it('extracts from the latest user message only: no injected memories, no assistant reply, no history', async () => {
+    const { config } = saving();
+    const { model, extraction } = memoryModel({ facts: [] });
+    await generateText({
+      model: withGoodmem(model, { ...config, addMemory: 'always' }),
+      system: 'Be brief.',
+      messages: [
+        { role: 'user', content: 'My cat is called Pixel.' },
+        { role: 'assistant', content: 'The user owns a yacht and speaks nine languages.' },
+        { role: 'user', content: 'I just moved to Irbid.' },
+      ],
+    });
+    const prompt = extraction[0].prompt as any[];
+    assert.equal(prompt.length, 2);
+    assert.deepEqual(prompt[0], { role: 'system', content: FACT_EXTRACTION_INSTRUCTIONS });
+    assert.equal(prompt[1].role, 'user');
+    assert.deepEqual(prompt[1].content.map((p: any) => p.text), ['I just moved to Irbid.']);
+    const all = JSON.stringify(prompt);
+    assert.doesNotMatch(all, /Relevant memories|ORYX-4471|yacht|Pixel|Be brief/);
+    assert.equal(extraction[0].responseFormat.type, 'json');
+    assert.deepEqual(Object.keys(extraction[0].responseFormat.schema.properties), ['facts']);
+  });
+
+  it('a tool loop extracts once, on the step that answers the user', async () => {
+    const { config } = saving();
+    let step = 0;
+    const { model, extraction, main } = memoryModel({
+      facts: ['User prefers aisle seats.'],
+      answer: () => (++step === 1 ? toolCall('lookUpFlights', {}) : textResult('Booked an aisle seat.')),
+    });
+    const result = await generateText({
+      model: withGoodmem(model, { ...config, addMemory: 'always' }),
+      tools: { lookUpFlights: tool({ inputSchema: z.object({}), execute: async () => 'two flights' }) },
+      prompt: 'I always sit in the aisle. Find me a flight to Cairo.',
+      stopWhen: stepCountIs(3),
+    });
+    assert.equal(main.length, 2, 'expected two model steps');
+    assert.equal(extraction.length, 1, 'the tool-result step extracted again');
+    assert.deepEqual((result.steps[0].providerMetadata?.goodmem as any).saved.facts, ['User prefers aisle seats.']);
+    assert.equal((result.steps[1].providerMetadata?.goodmem as any).saved, undefined);
+  });
+
+  it("skips a fact a memory retrieved for this turn already states, and duplicates within the turn", async () => {
+    const { fake, config } = saving();
+    const { model } = memoryModel({
+      facts: ["the fixture canary is ORYX-4471.  O'Brien filed it", 'User is vegetarian.', 'user is vegetarian'],
+    });
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'canary?' });
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.deepEqual(meta.saved.facts, ['User is vegetarian.']);
+    assert.deepEqual(meta.saved.duplicates, ["the fixture canary is ORYX-4471.  O'Brien filed it"]);
+    assert.equal(fake.calls('POST', '/v1/memories').length, 1);
+  });
+
+  it('a question or small talk stores nothing', async () => {
+    const { fake, config } = saving();
+    const { model, extraction } = memoryModel({ facts: [] });
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'What time is it?' });
+    assert.equal(extraction.length, 1);
+    assert.equal(fake.calls('POST', '/v1/memories').length, 0);
+    assert.deepEqual((result.providerMetadata?.goodmem as any).saved, {
+      facts: [],
+      memoryIds: [],
+      duplicates: [],
+      usage: { inputTokens: 42, outputTokens: 9, totalTokens: 51 },
+    });
+  });
+
+  it('a failed extraction is flagged -- saveError, a warning, a log line -- and the call succeeds', async () => {
+    const { fake, logs, config } = saving();
+    const { model } = memoryModel({ extraction: async () => { throw new Error('extraction model overloaded'); } });
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'I am a nurse.' });
+    assert.equal(result.text, 'ok');
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.equal(meta.saveError.stage, 'extraction');
+    assert.match(meta.saveError.message, /^Extracting facts to remember failed: .*extraction model overloaded/);
+    assert.ok(result.warnings?.some((w: any) => /automatic saving failed -- Extracting facts/.test(w.message)));
+    assert.match(logs.lines[0], /^\[goodmem\] automatic saving failed at the extraction stage -- /);
+    assert.equal(fake.calls('POST', '/v1/memories').length, 0);
+  });
+
+  it('extraction output that is not the expected JSON is a flagged extraction failure', async () => {
+    const { config } = saving();
+    const { model } = memoryModel({
+      extraction: async () => ({ content: [{ type: 'text', text: 'Sure! The user is a nurse.' }], finishReason: { unified: 'stop', raw: undefined }, usage: EXTRACTION_USAGE, warnings: [] }),
+    });
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'I am a nurse.' });
+    assert.equal((result.providerMetadata?.goodmem as any).saveError.stage, 'extraction');
+  });
+
+  it('a failed save is flagged with the facts and the memories already stored, and the call succeeds', async () => {
+    const { fake, logs, config } = setup({ scope: { userId: 'u-7' } });
+    let writes = 0;
+    fake
+      .on('POST', '/v1/memories:retrieve', 'retrieve_ok.ndjson')
+      .on('POST', '/v1/memories', () => (++writes === 1 ? replay('memory_create.json') : jsonResponse({ error: 'overloaded' }, 503)));
+    const { model } = memoryModel({ facts: ['User is a nurse.', 'User works nights.'] });
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'I am a night nurse.' });
+    assert.equal(result.text, 'ok');
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.equal(meta.saveError.stage, 'save');
+    assert.match(meta.saveError.message, /Storing memory 2 of 2 failed: GoodMem answered HTTP 503: overloaded/);
+    assert.deepEqual(meta.saveError.facts, ['User is a nurse.', 'User works nights.']);
+    assert.deepEqual(meta.saveError.memoryIds, [CREATED()]);
+    assert.ok(result.warnings?.some((w: any) => /automatic saving failed/.test(w.message)));
+    assert.match(logs.lines[0], /at the save stage/);
+  });
+
+  it('streaming: the outcome rides in the finish part, success or failure', async () => {
+    const ok = saving();
+    const streamed = memoryModel({ facts: ['User is left-handed.'] });
+    const result = streamText({ model: withGoodmem(streamed.model, { ...ok.config, addMemory: 'always' }), prompt: "I'm left-handed." });
+    assert.equal(await result.text, 'ok');
+    assert.deepEqual(((await result.providerMetadata)?.goodmem as any).saved.facts, ['User is left-handed.']);
+    assert.equal(streamed.extraction.length, 1);
+
+    const failing = setup();
+    failing.fake.on('POST', '/v1/memories:retrieve', 'retrieve_ok.ndjson').on('POST', '/v1/memories', () => jsonResponse({ error: 'down' }, 503));
+    const broken = streamText({
+      model: withGoodmem(memoryModel({ facts: ['User is left-handed.'] }).model, { ...failing.config, addMemory: 'always' }),
+      prompt: "I'm left-handed.",
+    });
+    assert.equal(await broken.text, 'ok');
+    assert.equal(((await broken.providerMetadata)?.goodmem as any).saveError.stage, 'save');
+    assert.match(failing.logs.lines[0], /automatic saving failed at the save stage/);
+  });
+
+  it('extractionModel does the extraction when given; the wrapped model only chats', async () => {
+    const { config } = saving();
+    const chat = memoryModel({ facts: ['should not be asked'] });
+    const cheap = memoryModel({ facts: ['User is a pilot.'] });
+    const result = await generateText({
+      model: withGoodmem(chat.model, { ...config, addMemory: 'always', extractionModel: cheap.model }),
+      prompt: 'I fly planes for a living.',
+    });
+    assert.equal(chat.extraction.length, 0);
+    assert.equal(chat.main.length, 1);
+    assert.equal(cheap.extraction.length, 1);
+    assert.deepEqual((result.providerMetadata?.goodmem as any).saved.facts, ['User is a pilot.']);
+  });
+
+  it('extractFacts replaces model extraction; its output is trimmed, de-duplicated and capped at 10', async () => {
+    const { fake, config } = saving();
+    const { model, extraction } = memoryModel();
+    const seen: Array<{ text: string; signal: AbortSignal }> = [];
+    const extractFacts = async (input: { text: string; signal: AbortSignal }) => {
+      seen.push(input);
+      return ['  User likes tea.  ', 'User likes tea', '', ...Array.from({ length: 12 }, (_, i) => `User fact ${i}.`)];
+    };
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always', extractFacts }), prompt: 'I like tea.' });
+    assert.equal(extraction.length, 0);
+    assert.equal(seen[0].text, 'I like tea.');
+    assert.ok(seen[0].signal instanceof AbortSignal);
+    const saved = (result.providerMetadata?.goodmem as any).saved;
+    assert.equal(saved.facts.length, 10);
+    assert.equal(saved.facts[0], 'User likes tea.');
+    assert.equal(saved.usage, undefined);
+    assert.equal(fake.calls('POST', '/v1/memories').length, 10);
+    assert.throws(
+      () => withGoodmem(model, { ...config, addMemory: 'always', extractFacts, extractionModel: model }),
+      /pass extractionModel or extractFacts, not both/
+    );
+  });
+
+  it('the save is bounded by timeoutMs and reported as timed out', async () => {
+    const { fake, logs, config } = saving({ timeoutMs: 150 });
+    const { model } = memoryModel({
+      extraction: (call: any) =>
+        new Promise((_resolve, reject) => call.abortSignal?.addEventListener('abort', () => reject(call.abortSignal.reason))),
+    });
+    const started = Date.now();
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'I am a runner.' });
+    assert.ok(Date.now() - started < 2000);
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.match(meta.saveError.message, /Automatic saving timed out after 150 ms \(timeoutMs\)/);
+    assert.match(logs.lines[0], /timed out/);
+    assert.equal(fake.calls('POST', '/v1/memories').length, 0);
+  });
+
+  it("the caller's abort stops the save; nothing is stored", async () => {
+    const { fake, config } = saving();
+    let extractionSignal: AbortSignal | undefined;
+    const { model } = memoryModel({
+      extraction: (call: any) => {
+        extractionSignal = call.abortSignal;
+        return new Promise((_resolve, reject) => call.abortSignal?.addEventListener('abort', () => reject(call.abortSignal.reason)));
+      },
+    });
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new Error('user left')), 50);
+    await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'I am a runner.', abortSignal: controller.signal }).catch(
+      () => undefined
+    );
+    assert.equal(extractionSignal?.aborted, true, 'the extraction call was not aborted');
+    assert.equal(fake.calls('POST', '/v1/memories').length, 0);
+  });
+
+  it('a failed model call cancels the save', async () => {
+    const { fake, logs, config } = saving();
+    const { model, extraction } = memoryModel({
+      facts: ['User is a runner.'],
+      answer: () => {
+        throw new Error('provider down');
+      },
+    });
+    await assert.rejects(generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'I run.', maxRetries: 0 }), /provider down/);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(extraction.length, 1, 'the extraction was expected to have run alongside the call');
+    assert.equal(fake.calls('POST', '/v1/memories').length, 0, 'facts were saved for a failed call');
+    assert.deepEqual(logs.lines, []);
+  });
+
+  it('extraction runs alongside the model call, not after it', async () => {
+    const { config } = saving();
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const { model } = memoryModel({
+      extraction: async () => {
+        await delay(250);
+        return { content: [{ type: 'text', text: '{"facts":["User is tall."]}' }], finishReason: { unified: 'stop', raw: undefined }, usage: EXTRACTION_USAGE, warnings: [] };
+      },
+      answer: () => delay(250).then(() => textResult('ok')),
+    });
+    const started = Date.now();
+    const result = await generateText({ model: withGoodmem(model, { ...config, addMemory: 'always' }), prompt: 'I am tall.' });
+    const elapsed = Date.now() - started;
+    assert.deepEqual((result.providerMetadata?.goodmem as any).saved.facts, ['User is tall.']);
+    assert.ok(elapsed < 450, `extraction and the model call took ${elapsed} ms together: they did not overlap`);
+  });
+
+  it('a stream that fails part-way stores nothing', async () => {
+    const { fake, config } = saving();
+    const { model: extractor } = memoryModel({ facts: ['User is a chef.'] });
+    const failingStream = new MockLanguageModelV3({
+      doStream: (async () => ({
+        stream: new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: 'stream-start', warnings: [] });
+            controller.enqueue({ type: 'text-start', id: 't' });
+            controller.enqueue({ type: 'text-delta', id: 't', delta: 'par' });
+            controller.error(new Error('connection reset'));
+          },
+        }),
+      })) as any,
+    });
+    const result = streamText({
+      model: withGoodmem(failingStream, { ...config, addMemory: 'always', extractionModel: extractor }),
+      prompt: 'I am a chef.',
+      onError: () => {},
+    });
+    await Promise.resolve(result.consumeStream()).catch(() => undefined);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(fake.calls('POST', '/v1/memories').length, 0, 'facts were stored for a failed stream');
+  });
+
+  it('validates addMemory, extractionModel and extractFacts', () => {
+    const { config } = saving();
+    const model = streamingModel();
+    assert.throws(() => withGoodmem(model, { ...config, addMemory: 'sometimes' as any }), /addMemory must be 'never' or 'always'/);
+    assert.throws(() => withGoodmem(model, { ...config, extractionModel: 42 as any }), /extractionModel must be a language model/);
+    assert.throws(() => withGoodmem(model, { ...config, extractFacts: 'yes' as any }), /extractFacts must be a function/);
   });
 });
 
