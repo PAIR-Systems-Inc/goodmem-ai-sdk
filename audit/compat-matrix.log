@@ -1,0 +1,116 @@
+# Compatibility matrix: CI's test-job steps run locally in a fresh copy per (node, ai, zod), on the tree at commit f142994
+# per combination: npm ci; npm install --no-save ai@X zod@Y; tsc (package) and tsc -p tsconfig.test.json; offline suite (TAP); live suite must skip without credentials; npm run build; npm run check:readme; npm pack + clean install loaded with require() and import()
+
+=== node v20.20.0, ai 6.0.0, zod 3.25.76 (<fresh copy>)
+ok   npm ci
+ok   install ai@6.0.0 zod@3.25.76
+     resolved: ai 6.0.0, zod 3.25.76
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+=== node v20.20.0, ai ^6.0.0, zod 3.25.76 (<fresh copy>)
+ok   npm ci
+ok   install ai@^6.0.0 zod@3.25.76
+     resolved: ai 6.0.297, zod 3.25.76
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+=== node v20.20.0, ai ^7.0.0, zod ^4.1.8 (<fresh copy>)
+ok   npm ci
+ok   install ai@^7.0.0 zod@^4.1.8
+     resolved: ai 7.0.123, zod 4.6.5
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+=== node v24.14.0, ai ^6.0.0, zod ^4.1.8 (<fresh copy>)
+ok   npm ci
+ok   install ai@^6.0.0 zod@^4.1.8
+     resolved: ai 6.0.297, zod 4.6.5
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+=== node v24.14.0, ai 7.0.0, zod ^4.1.8 (<fresh copy>)
+ok   npm ci
+ok   install ai@7.0.0 zod@^4.1.8
+     resolved: ai 7.0.0, zod 4.6.5
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+=== node v24.14.0, ai ^7.0.0, zod ^4.1.8 (<fresh copy>)
+ok   npm ci
+ok   install ai@^7.0.0 zod@^4.1.8
+     resolved: ai 7.0.123, zod 4.6.5
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+=== node v24.14.0, ai ^7.0.0, zod 3.25.76 (<fresh copy>)
+ok   npm ci
+ok   install ai@^7.0.0 zod@3.25.76
+     resolved: ai 7.0.123, zod 3.25.76
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+=== node v24.14.0, ai ^7.0.0, zod 4.1.8 (<fresh copy>)
+ok   npm ci
+ok   install ai@^7.0.0 zod@4.1.8
+     resolved: ai 7.0.123, zod 4.1.8
+ok   tsc --noEmit
+ok   tsc -p tsconfig.test.json
+# tests 77 # pass 77 # fail 0 
+ok   offline suite
+ok   live suite skips without credentials
+ok   build
+ok   check:readme (against lib)
+ok   clean install: require()
+ok   clean install: import()
+=== PASS
+done

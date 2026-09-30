@@ -1,0 +1,9 @@
+# Independent post-run inventory (plain SDK listing, run after the live suite exited)
+# commit f142994, 2026-09-30T13:36:35Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
+
+server server-v1.0.323
+spaces on server: 13 (listing followed to the last page)
+embedders on server: 7
+spaces named aisdk-*: 0 []
+embedders named aisdk-*: 0 []
+exit=0

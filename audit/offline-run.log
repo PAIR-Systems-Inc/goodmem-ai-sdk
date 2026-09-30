@@ -1,0 +1,516 @@
+# Offline suite, environment cleared (TAP)
+# commit f142994, 2026-09-30T13:33:55Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
+
+$ env -u GOODMEM_API_KEY -u GOODMEM_BASE_URL -u GOODMEM_TEST_EMBEDDER_ID npx tsx --test --test-reporter=tap tests/goodmem_test.ts
+TAP version 13
+# (node:602754) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:602754) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- EMBEDDER_FAILED: Embedding failed: Failed to create inference client
+# (node:602754) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- NOT_FOUND: Reranker validation failed: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000 (ID: 00000000-0000-7000-8000-000000000000). Verify the reranker exists and is accessible.; RERANKING_FAILED: Failed to create reranker client: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000
+# Subtest: fixtures
+    # Subtest: are bytes captured from a live server, with their recorded status
+    ok 1 - are bytes captured from a live server, with their recorded status
+      ---
+      duration_ms: 0.51065
+      ...
+    # Subtest: carry no credential
+    ok 2 - carry no credential
+      ---
+      duration_ms: 0.451658
+      ...
+    1..2
+ok 1 - fixtures
+  ---
+  duration_ms: 1.372577
+  type: 'suite'
+  ...
+# Subtest: configuration
+    # Subtest: requires apiKey, baseUrl and exactly one space option, naming what is missing
+    ok 1 - requires apiKey, baseUrl and exactly one space option, naming what is missing
+      ---
+      duration_ms: 0.648952
+      ...
+    # Subtest: has no default server and never reads the environment
+    ok 2 - has no default server and never reads the environment
+      ---
+      duration_ms: 0.292235
+      ...
+    # Subtest: rejects unknown options instead of ignoring a typo
+    ok 3 - rejects unknown options instead of ignoring a typo
+      ---
+      duration_ms: 0.155986
+      ...
+    # Subtest: bounds every request: timeoutMs must be a positive number and cannot be turned off
+    ok 4 - bounds every request: timeoutMs must be a positive number and cannot be turned off
+      ---
+      duration_ms: 0.172187
+      ...
+    # Subtest: refuses minScore without a reranker, explaining why
+    ok 5 - refuses minScore without a reranker, explaining why
+      ---
+      duration_ms: 0.151047
+      ...
+    # Subtest: validates scope field names and values up front
+    ok 6 - validates scope field names and values up front
+      ---
+      duration_ms: 0.277016
+      ...
+    # Subtest: withGoodmem refuses a model id string and an unknown position
+    ok 7 - withGoodmem refuses a model id string and an unknown position
+      ---
+      duration_ms: 7.252804
+      ...
+    1..7
+ok 2 - configuration
+  ---
+  duration_ms: 9.179061
+  type: 'suite'
+  ...
+# Subtest: retrieval status contract
+    # Subtest: a clean stream is not partial and logs nothing
+    ok 1 - a clean stream is not partial and logs nothing
+      ---
+      duration_ms: 7.418097
+      ...
+    # Subtest: Q1: FEATURE_DISABLED is noise by code alone
+    ok 2 - Q1: FEATURE_DISABLED is noise by code alone
+      ---
+      duration_ms: 0.990281
+      ...
+    # Subtest: Q4a: a degraded retrieval still returns its hits, flagged, with a WARNING log
+    ok 3 - Q4a: a degraded retrieval still returns its hits, flagged, with a WARNING log
+      ---
+      duration_ms: 0.747279
+      ...
+    # Subtest: Q4b: a degraded retrieval with no hits is flagged, not an empty success, and does not throw
+    ok 4 - Q4b: a degraded retrieval with no hits is flagged, not an empty success, and does not throw
+      ---
+      duration_ms: 0.4316
+      ...
+    # Subtest: Q3: a status code this build does not know becomes UNKNOWN, partial, results kept
+    ok 5 - Q3: a status code this build does not know becomes UNKNOWN, partial, results kept
+      ---
+      duration_ms: 0.613615
+      ...
+    # Subtest: a stream that breaks off keeps what arrived and says so
+    ok 6 - a stream that breaks off keeps what arrived and says so
+      ---
+      duration_ms: 0.603506
+      ...
+    # Subtest: a request that yields no event at all throws rather than reporting "nothing found"
+    ok 7 - a request that yields no event at all throws rather than reporting "nothing found"
+      ---
+      duration_ms: 0.61115
+      ...
+    # Subtest: an empty space is a clean, empty result
+    ok 8 - an empty space is a clean, empty result
+      ---
+      duration_ms: 0.513234
+      ...
+    1..8
+ok 3 - retrieval status contract
+  ---
+  duration_ms: 12.118142
+  type: 'suite'
+  ...
+# Subtest: degraded retrieval surfaces through tools, middleware and helpers
+    # Subtest: tool: the model receives partial, statuses and a warning
+    ok 1 - tool: the model receives partial, statuses and a warning
+      ---
+      duration_ms: 7.727305
+      ...
+    # Subtest: middleware: the injected text says retrieval failed, and the call carries a warning and partial metadata
+    ok 2 - middleware: the injected text says retrieval failed, and the call carries a warning and partial metadata
+      ---
+      duration_ms: 1.617181
+      ...
+    # Subtest: middleware (streaming): warning and partial metadata reach streamText
+    ok 3 - middleware (streaming): warning and partial metadata reach streamText
+      ---
+      duration_ms: 9.606423
+      ...
+    # Subtest: retrieveMemories: the context says results may be missing
+    ok 4 - retrieveMemories: the context says results may be missing
+      ---
+      duration_ms: 0.855695
+      ...
+    1..4
+ok 4 - degraded retrieval surfaces through tools, middleware and helpers
+  ---
+  duration_ms: 19.923285
+  type: 'suite'
+  ...
+# Subtest: failures throw, carrying the server's explanation
+    # Subtest: an HTTP error keeps its status and body
+    ok 1 - an HTTP error keeps its status and body
+      ---
+      duration_ms: 0.807102
+      ...
+    # Subtest: an unreachable server says which URL and why
+    ok 2 - an unreachable server says which URL and why
+      ---
+      duration_ms: 0.336679
+      ...
+    # Subtest: tool: a failed request becomes an AI SDK tool error with the server message
+    ok 3 - tool: a failed request becomes an AI SDK tool error with the server message
+      ---
+      duration_ms: 2.06947
+      ...
+    # Subtest: middleware: an unreachable server fails the call; the model is never called with no memories
+    ok 4 - middleware: an unreachable server fails the call; the model is never called with no memories
+      ---
+      duration_ms: 0.750224
+      ...
+    1..4
+ok 5 - failures throw, carrying the server's explanation
+  ---
+  duration_ms: 4.108593
+  type: 'suite'
+  ...
+# Subtest: timeouts and cancellation
+    # Subtest: a request that never answers is cut off at timeoutMs
+    ok 1 - a request that never answers is cut off at timeoutMs
+      ---
+      duration_ms: 151.412076
+      ...
+    # Subtest: a stream that stalls mid-way is cut off too, keeping what arrived
+    ok 2 - a stream that stalls mid-way is cut off too, keeping what arrived
+      ---
+      duration_ms: 151.671409
+      ...
+    # Subtest: every request the package makes carries an abort signal
+    ok 3 - every request the package makes carries an abort signal
+      ---
+      duration_ms: 2.721999
+      ...
+    # Subtest: a caller abort cancels the request and is rethrown as the abort
+    ok 4 - a caller abort cancels the request and is rethrown as the abort
+      ---
+      duration_ms: 30.875503
+      ...
+    # Subtest: middleware forwards the call's abortSignal to GoodMem
+    ok 5 - middleware forwards the call's abortSignal to GoodMem
+      ---
+      duration_ms: 31.155225
+      ...
+    1..5
+ok 6 - timeouts and cancellation
+  ---
+  duration_ms: 368.10908
+  type: 'suite'
+  ...
+# Subtest: scores
+    # Subtest: vector scores are flipped to higher-is-better, raw kept, order preserved
+    ok 1 - vector scores are flipped to higher-is-better, raw kept, order preserved
+      ---
+      duration_ms: 0.464452
+      ...
+    # Subtest: reranker scores come from the rerank stage and are never flipped
+    ok 2 - reranker scores come from the rerank stage and are never flipped
+      ---
+      duration_ms: 0.550044
+      ...
+    # Subtest: a reranker that failed does not mislabel the vector scores that came back
+    ok 3 - a reranker that failed does not mislabel the vector scores that came back
+      ---
+      duration_ms: 0.424376
+      ...
+    # Subtest: minScore filters reranker scores only, and warns with the observed range when it removes everything
+    ok 4 - minScore filters reranker scores only, and warns with the observed range when it removes everything
+      ---
+      duration_ms: 0.729796
+      ...
+    # Subtest: sends no reranker or threshold unless configured
+    ok 5 - sends no reranker or threshold unless configured
+      ---
+      duration_ms: 0.351537
+      ...
+    # Subtest: orientScore flips only vector scores
+    ok 6 - orientScore flips only vector scores
+      ---
+      duration_ms: 0.054874
+      ...
+    1..6
+ok 7 - scores
+  ---
+  duration_ms: 2.678928
+  type: 'suite'
+  ...
+# Subtest: stream joining
+    # Subtest: joins chunks to memories by UUID, whatever the order and memoryIndex
+    ok 1 - joins chunks to memories by UUID, whatever the order and memoryIndex
+      ---
+      duration_ms: 0.450615
+      ...
+    # Subtest: de-duplicates by chunk id, never by memory id
+    ok 2 - de-duplicates by chunk id, never by memory id
+      ---
+      duration_ms: 0.454784
+      ...
+    1..2
+ok 8 - stream joining
+  ---
+  duration_ms: 0.95341
+  type: 'suite'
+  ...
+# Subtest: content decoding
+    # Subtest: includeContent returns text as text and a PDF as base64, byte-identical
+    ok 1 - includeContent returns text as text and a PDF as base64, byte-identical
+      ---
+      duration_ms: 0.604829
+      ...
+    # Subtest: does not ask for content unless requested
+    ok 2 - does not ask for content unless requested
+      ---
+      duration_ms: 0.329216
+      ...
+    # Subtest: decodes by content type and charset, and keeps undecodable text as base64
+    ok 3 - decodes by content type and charset, and keeps undecodable text as base64
+      ---
+      duration_ms: 0.198257
+      ...
+    1..3
+ok 9 - content decoding
+  ---
+  duration_ms: 1.197805
+  type: 'suite'
+  ...
+# Subtest: tools
+    # Subtest: the model is offered exactly two tools, with minimal inputs (as sent to the provider)
+    ok 1 - the model is offered exactly two tools, with minimal inputs (as sent to the provider)
+      ---
+      duration_ms: 1.362838
+      ...
+    # Subtest: round-trips through generateText: the model calls searchMemories and receives real results
+    ok 2 - round-trips through generateText: the model calls searchMemories and receives real results
+      ---
+      duration_ms: 2.063018
+      ...
+    # Subtest: addMemory stores text in the configured space with the scope, and does not wait
+    ok 3 - addMemory stores text in the configured space with the scope, and does not wait
+      ---
+      duration_ms: 1.862717
+      ...
+    # Subtest: an out-of-range topK from the model is rejected before any request
+    ok 4 - an out-of-range topK from the model is rejected before any request
+      ---
+      duration_ms: 2.335074
+      ...
+    1..4
+ok 10 - tools
+  ---
+  duration_ms: 7.716464
+  type: 'suite'
+  ...
+# Subtest: middleware
+    # Subtest: appends memories to the leading system message, or adds one
+    ok 1 - appends memories to the leading system message, or adds one
+      ---
+      duration_ms: 1.829384
+      ...
+    # Subtest: position 'user' prepends memories to the latest user message
+    ok 2 - position 'user' prepends memories to the latest user message
+      ---
+      duration_ms: 0.883709
+      ...
+    # Subtest: a template controls the injected text; returning an empty string injects nothing
+    ok 3 - a template controls the injected text; returning an empty string injects nothing
+      ---
+      duration_ms: 1.676003
+      ...
+    # Subtest: does not modify the caller's messages or put memories into the conversation
+    ok 4 - does not modify the caller's messages or put memories into the conversation
+      ---
+      duration_ms: 1.157468
+      ...
+    # Subtest: a call with no user text is passed through without a retrieval
+    ok 5 - a call with no user text is passed through without a retrieval
+      ---
+      duration_ms: 0.501472
+      ...
+    # Subtest: searches the latest user message and reports the memories used
+    ok 6 - searches the latest user message and reports the memories used
+      ---
+      duration_ms: 0.849723
+      ...
+    1..6
+ok 11 - middleware
+  ---
+  duration_ms: 7.021574
+  type: 'suite'
+  ...
+# Subtest: writes
+    # Subtest: never sends publicRead (the server rejects it with HTTP 400)
+    ok 1 - never sends publicRead (the server rejects it with HTTP 400)
+      ---
+      duration_ms: 1.219345
+      ...
+    # Subtest: uploads a PDF as bytes with its content type, as multipart through the SDK
+    ok 2 - uploads a PDF as bytes with its content type, as multipart through the SDK
+      ---
+      duration_ms: 0.980121
+      ...
+    # Subtest: validates every input before writing anything
+    ok 3 - validates every input before writing anything
+      ---
+      duration_ms: 0.328734
+      ...
+    # Subtest: a failure part-way reports the memories already stored and where to resume
+    ok 4 - a failure part-way reports the memories already stored and where to resume
+      ---
+      duration_ms: 0.622803
+      ...
+    # Subtest: does not wait for indexing unless asked
+    ok 5 - does not wait for indexing unless asked
+      ---
+      duration_ms: 0.317112
+      ...
+    # Subtest: waitForIndexing polls only the memories it created until they complete
+    ok 6 - waitForIndexing polls only the memories it created until they complete
+      ---
+      duration_ms: 13.054511
+      ...
+    # Subtest: a memory that fails processing is reported, and the write is said to have succeeded
+    ok 7 - a memory that fails processing is reported, and the write is said to have succeeded
+      ---
+      duration_ms: 1.034825
+      ...
+    # Subtest: a wait that runs out is bounded and reported as pending, not failed
+    ok 8 - a wait that runs out is bounded and reported as pending, not failed
+      ---
+      duration_ms: 60.964284
+      ...
+    1..8
+ok 12 - writes
+  ---
+  duration_ms: 78.744729
+  type: 'suite'
+  ...
+# Subtest: named space: create, reuse and pagination
+    # Subtest: follows the listing to a match on the second page and reuses it
+    ok 1 - follows the listing to a match on the second page and reuses it
+      ---
+      duration_ms: 1.150354
+      ...
+    # Subtest: creates the space with the requested embedder when none exists, then reuses it
+    ok 2 - creates the space with the requested embedder when none exists, then reuses it
+      ---
+      duration_ms: 0.921981
+      ...
+    # Subtest: refuses to reuse a same-named space indexed by another embedder, naming both
+    ok 3 - refuses to reuse a same-named space indexed by another embedder, naming both
+      ---
+      duration_ms: 0.549884
+      ...
+    # Subtest: refuses to guess between two spaces with the same name
+    ok 4 - refuses to guess between two spaces with the same name
+      ---
+      duration_ms: 0.349544
+      ...
+    # Subtest: a server that repeats a page token fails loudly instead of looping
+    ok 5 - a server that repeats a page token fails loudly instead of looping
+      ---
+      duration_ms: 0.444995
+      ...
+    # Subtest: a runaway listing is bounded and refused, never silently truncated
+    ok 6 - a runaway listing is bounded and refused, never silently truncated
+      ---
+      duration_ms: 27.63016
+      ...
+    # Subtest: a space created concurrently by someone else (409) is found and reused
+    ok 7 - a space created concurrently by someone else (409) is found and reused
+      ---
+      duration_ms: 1.071946
+      ...
+    # Subtest: a rejected create carries the server's field-level message
+    ok 8 - a rejected create carries the server's field-level message
+      ---
+      duration_ms: 0.486244
+      ...
+    1..8
+ok 13 - named space: create, reuse and pagination
+  ---
+  duration_ms: 32.945324
+  type: 'suite'
+  ...
+# Subtest: filters
+    # Subtest: escapes an apostrophe with a backslash, not by doubling, and doubles backslashes
+    ok 1 - escapes an apostrophe with a backslash, not by doubling, and doubles backslashes
+      ---
+      duration_ms: 0.071636
+      ...
+    # Subtest: refuses control characters
+    ok 2 - refuses control characters
+      ---
+      duration_ms: 0.075824
+      ...
+    # Subtest: casts booleans as BOOLEAN and numbers as NUMERIC, never as TEXT
+    ok 3 - casts booleans as BOOLEAN and numbers as NUMERIC, never as TEXT
+      ---
+      duration_ms: 0.040567
+      ...
+    # Subtest: refuses unsafe and hyphenated field names, allows nested ones
+    ok 4 - refuses unsafe and hyphenated field names, allows nested ones
+      ---
+      duration_ms: 0.048262
+      ...
+    # Subtest: builds comparisons, sets, negation and combinations
+    ok 5 - builds comparisons, sets, negation and combinations
+      ---
+      duration_ms: 0.159272
+      ...
+    # Subtest: scope and filter reach every space key, and an injection payload stays a literal
+    ok 6 - scope and filter reach every space key, and an injection payload stays a literal
+      ---
+      duration_ms: 0.360214
+      ...
+    1..6
+ok 14 - filters
+  ---
+  duration_ms: 0.830296
+  type: 'suite'
+  ...
+# Subtest: secrets and isolation
+    # Subtest: the API key never appears in tools, wrapped models, results or errors
+    ok 1 - the API key never appears in tools, wrapped models, results or errors
+      ---
+      duration_ms: 4.659097
+      ...
+    # Subtest: the key is sent only in the x-api-key header
+    ok 2 - the key is sent only in the x-api-key header
+      ---
+      duration_ms: 0.34189
+      ...
+    # Subtest: two configurations keep their own client, spaces and scope
+    ok 3 - two configurations keep their own client, spaces and scope
+      ---
+      duration_ms: 1.113004
+      ...
+    1..3
+ok 15 - secrets and isolation
+  ---
+  duration_ms: 6.179695
+  type: 'suite'
+  ...
+# Subtest: README
+    # Subtest: every TypeScript example compiles against the package
+    ok 1 - every TypeScript example compiles against the package
+      ---
+      duration_ms: 743.773941
+      ...
+    1..1
+ok 16 - README
+  ---
+  duration_ms: 743.842893
+  type: 'suite'
+  ...
+1..16
+# tests 77
+# suites 16
+# pass 77
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1471.757496
+exit=0
