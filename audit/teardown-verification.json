@@ -1,15 +1,15 @@
 {
-  "run": "aisdk-live-muo5ccfa-298ed5",
+  "run": "aisdk-live-muo9dmnp-39375f",
   "serverVersion": "server-v1.0.323",
-  "checkedAt": "2026-09-30T13:36:35.850Z",
+  "checkedAt": "2026-09-30T15:27:41.190Z",
   "deleted": {
     "spaces": [
-      "01a0f285-af11-74d9-9201-c82b2c9b0f62",
-      "01a0f286-e913-7370-b381-3f4c5958a0b3",
-      "01a0f286-ed25-71dd-9733-6018a6d30a4c"
+      "01a0f2ed-1d28-71e3-a241-9a49315ea4eb",
+      "01a0f2ed-673f-745a-b285-8ea44487e543",
+      "01a0f2ed-6f3a-73f7-a390-09834eaae818"
     ],
     "embedders": [
-      "01a0f285-af08-757d-bd8d-1a00b6aa9418"
+      "01a0f2ed-1d1c-7127-aca0-e9b3a3bb3d7d"
     ]
   },
   "deleteFailures": [],
@@ -19,11 +19,11 @@
   },
   "freshListing": {
     "before": {
-      "spaces": 13,
+      "spaces": 14,
       "embedders": 7
     },
     "after": {
-      "spaces": 13,
+      "spaces": 14,
       "embedders": 7
     },
     "spacesNamedAisdkLive": [],

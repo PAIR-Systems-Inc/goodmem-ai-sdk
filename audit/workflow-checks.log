@@ -1,4 +1,4 @@
-# Workflow checks, commit f142994, 2026-09-30T13:37:33Z
+# Workflow checks, commit 08cea6c, 2026-09-30T15:29:00Z
 
 ## 1. Every run: step extracted from the YAML and checked with bash -n
 ok   bash -n  ci.yml / test / Install  -> ci__test__02.sh
@@ -12,7 +12,7 @@ ok   bash -n  ci.yml / test / README examples type-check and every named identif
 ok   bash -n  ci.yml / test / The packed package installs and loads in a clean directory  -> ci__test__10.sh
 ok   bash -n  ci.yml / gates / No GoodMem API key in any tracked file  -> ci__gates__01.sh
 ok   bash -n  ci.yml / gates / TLS verification is never disabled, in code, tests or docs  -> ci__gates__02.sh
-ok   bash -n  ci.yml / gates / src reaches GoodMem only through the SDK and reads no environment  -> ci__gates__03.sh
+ok   bash -n  ci.yml / gates / src reaches GoodMem only through the SDK; only src/env.ts reads the environment, for two variables  -> ci__gates__03.sh
 ok   bash -n  ci.yml / gates / publicRead is never sent  -> ci__gates__04.sh
 --   ci.yml: 13 run step(s) extracted
 ok   bash -n  publish.yml / build / Install  -> publish__build__02.sh
@@ -38,13 +38,15 @@ shellcheck exit=0
 
 ## 3. Gate steps run on the tree (lib/ and node_modules/ present: lib node_modules )
 --- ci__gates__01.sh
+grep: audit/workflow-checks.log: input file is also the output
 No credential-shaped string in any tracked file.
 exit=0
 --- ci__gates__02.sh
+grep: audit/workflow-checks.log: input file is also the output
 Nothing disables TLS verification.
 exit=0
 --- ci__gates__03.sh
-src/ uses the GoodMem SDK only and reads no environment variables.
+src/ uses the GoodMem SDK only; the environment is read only in src/env.ts, for GOODMEM_API_KEY and GOODMEM_BASE_URL.
 exit=0
 --- ci__gates__04.sh
 publicRead appears nowhere in src/.
@@ -54,7 +56,11 @@ exit=0
 key gate matches a 26-char key: 1
 key gate matches the test key or the scipy symbol (want 0): 0
 TLS gate matches both bypasses (want 2): 2
-src gate matches a fetch( call and an env read (want 2): 2
+src gate on a direct fetch( call in tools.ts (want 1): exit=1
+src gate on process.env.GOODMEM_API_KEY read in config.ts (want 1): exit=1
+src gate on a third variable read in env.ts (want 1): exit=1
+src gate on bracket access in env.ts (want 1): exit=1
+src gate on a whole-environment dump in env.ts (want 1): exit=1
 
 ## 5. The live-skip step, run as CI runs it, on Node 20 and Node 24
 node v20.20.0: exit=0

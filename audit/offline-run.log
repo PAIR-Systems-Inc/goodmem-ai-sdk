@@ -1,516 +1,696 @@
 # Offline suite, environment cleared (TAP)
-# commit f142994, 2026-09-30T13:33:55Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
+# commit 08cea6c, 2026-09-30T15:26:52Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
 
 $ env -u GOODMEM_API_KEY -u GOODMEM_BASE_URL -u GOODMEM_TEST_EMBEDDER_ID npx tsx --test --test-reporter=tap tests/goodmem_test.ts
 TAP version 13
-# (node:602754) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+# (node:653514) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
 # (Use `node --trace-warnings ...` to show where the warning was created)
-# (node:602754) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- EMBEDDER_FAILED: Embedding failed: Failed to create inference client
-# (node:602754) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- NOT_FOUND: Reranker validation failed: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000 (ID: 00000000-0000-7000-8000-000000000000). Verify the reranker exists and is accessible.; RERANKING_FAILED: Failed to create reranker client: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at https://goodmem.test (ECONNREFUSED). Check baseUrl and that the server is running.
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 503: server says 503
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 500: server says 500
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 429: server says 429
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: GoodMem answered HTTP 408: server says 408
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: Expected NDJSON response body from POST /v1/memories:retrieve but received an empty stream
 # Subtest: fixtures
     # Subtest: are bytes captured from a live server, with their recorded status
     ok 1 - are bytes captured from a live server, with their recorded status
       ---
-      duration_ms: 0.51065
+      duration_ms: 0.904438
       ...
     # Subtest: carry no credential
     ok 2 - carry no credential
       ---
-      duration_ms: 0.451658
+      duration_ms: 0.635778
       ...
     1..2
 ok 1 - fixtures
   ---
-  duration_ms: 1.372577
+  duration_ms: 2.120168
   type: 'suite'
   ...
 # Subtest: configuration
     # Subtest: requires apiKey, baseUrl and exactly one space option, naming what is missing
     ok 1 - requires apiKey, baseUrl and exactly one space option, naming what is missing
       ---
-      duration_ms: 0.648952
-      ...
-    # Subtest: has no default server and never reads the environment
-    ok 2 - has no default server and never reads the environment
-      ---
-      duration_ms: 0.292235
+      duration_ms: 0.976245
       ...
     # Subtest: rejects unknown options instead of ignoring a typo
-    ok 3 - rejects unknown options instead of ignoring a typo
+    ok 2 - rejects unknown options instead of ignoring a typo
       ---
-      duration_ms: 0.155986
+      duration_ms: 0.223826
       ...
     # Subtest: bounds every request: timeoutMs must be a positive number and cannot be turned off
-    ok 4 - bounds every request: timeoutMs must be a positive number and cannot be turned off
+    ok 3 - bounds every request: timeoutMs must be a positive number and cannot be turned off
       ---
-      duration_ms: 0.172187
+      duration_ms: 0.202806
       ...
     # Subtest: refuses minScore without a reranker, explaining why
-    ok 5 - refuses minScore without a reranker, explaining why
+    ok 4 - refuses minScore without a reranker, explaining why
       ---
-      duration_ms: 0.151047
+      duration_ms: 0.14736
       ...
     # Subtest: validates scope field names and values up front
-    ok 6 - validates scope field names and values up front
+    ok 5 - validates scope field names and values up front
       ---
-      duration_ms: 0.277016
+      duration_ms: 0.295492
       ...
     # Subtest: withGoodmem refuses a model id string and an unknown position
-    ok 7 - withGoodmem refuses a model id string and an unknown position
+    ok 6 - withGoodmem refuses a model id string and an unknown position
       ---
-      duration_ms: 7.252804
+      duration_ms: 8.530829
       ...
-    1..7
+    1..6
 ok 2 - configuration
   ---
-  duration_ms: 9.179061
+  duration_ms: 10.58918
+  type: 'suite'
+  ...
+# Subtest: environment fallback (GOODMEM_API_KEY, GOODMEM_BASE_URL)
+    # Subtest: uses both variables when the options are omitted
+    ok 1 - uses both variables when the options are omitted
+      ---
+      duration_ms: 7.627433
+      ...
+    # Subtest: an explicit option always wins over the environment
+    ok 2 - an explicit option always wins over the environment
+      ---
+      duration_ms: 1.057629
+      ...
+    # Subtest: each option falls back on its own, and an explicit empty value never does
+    ok 3 - each option falls back on its own, and an explicit empty value never does
+      ---
+      duration_ms: 0.824447
+      ...
+    # Subtest: neither option nor variable: the error names the option, the variable and where to get one
+    ok 4 - neither option nor variable: the error names the option, the variable and where to get one
+      ---
+      duration_ms: 0.323775
+      ...
+    # Subtest: a malformed GOODMEM_BASE_URL is reported as coming from the environment
+    ok 5 - a malformed GOODMEM_BASE_URL is reported as coming from the environment
+      ---
+      duration_ms: 0.136128
+      ...
+    # Subtest: a key from the environment never appears in tools, wrapped models, results or errors
+    ok 6 - a key from the environment never appears in tools, wrapped models, results or errors
+      ---
+      duration_ms: 3.677658
+      ...
+    # Subtest: runtimes without a Node environment, or that refuse access to it, get no fallback
+    ok 7 - runtimes without a Node environment, or that refuse access to it, get no fallback
+      ---
+      duration_ms: 1.338464
+      ...
+    # Subtest: only src/env.ts reads the environment, and only these two variables
+    ok 8 - only src/env.ts reads the environment, and only these two variables
+      ---
+      duration_ms: 0.432653
+      ...
+    1..8
+ok 3 - environment fallback (GOODMEM_API_KEY, GOODMEM_BASE_URL)
+  ---
+  duration_ms: 15.650497
+  type: 'suite'
+  ...
+# Subtest: middleware when GoodMem is unavailable (skipMemoryOnError, retrievalTimeoutMs)
+    # Subtest: an unreachable server: the call goes ahead, told memories may be missing, and is flagged
+    ok 1 - an unreachable server: the call goes ahead, told memories may be missing, and is flagged
+      ---
+      duration_ms: 5.106533
+      ...
+    # Subtest: HTTP 503 is an availability failure: the call goes ahead, flagged with the status
+    ok 2 - HTTP 503 is an availability failure: the call goes ahead, flagged with the status
+      ---
+      duration_ms: 1.422673
+      ...
+    # Subtest: HTTP 500 is an availability failure: the call goes ahead, flagged with the status
+    ok 3 - HTTP 500 is an availability failure: the call goes ahead, flagged with the status
+      ---
+      duration_ms: 1.054935
+      ...
+    # Subtest: HTTP 429 is an availability failure: the call goes ahead, flagged with the status
+    ok 4 - HTTP 429 is an availability failure: the call goes ahead, flagged with the status
+      ---
+      duration_ms: 3.396794
+      ...
+    # Subtest: HTTP 408 is an availability failure: the call goes ahead, flagged with the status
+    ok 5 - HTTP 408 is an availability failure: the call goes ahead, flagged with the status
+      ---
+      duration_ms: 0.923434
+      ...
+    # Subtest: a broken response (a 200 with no events) is an availability failure too
+    ok 6 - a broken response (a 200 with no events) is an availability failure too
+      ---
+      duration_ms: 1.103357
+      ...
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem timed out after 100 ms: the GoodMem server at https://goodmem.test did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
+    # Subtest: a lookup slower than retrievalTimeoutMs is cut off and the call goes ahead, flagged as a timeout
+    ok 7 - a lookup slower than retrievalTimeoutMs is cut off and the call goes ahead, flagged as a timeout
+      ---
+      duration_ms: 101.495578
+      ...
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Looking up the configured space timed out after 100 ms: the GoodMem server at https://goodmem.test did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
+    # Subtest: retrievalTimeoutMs bounds the whole lookup, including finding a named space
+    ok 8 - retrievalTimeoutMs bounds the whole lookup, including finding a named space
+      ---
+      duration_ms: 102.693834
+      ...
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at https://goodmem.test (ECONNREFUSED). Check baseUrl and that the server is running.
+    # Subtest: retrievalTimeoutMs is the middleware's alone: helpers keep timeoutMs
+    ok 9 - retrievalTimeoutMs is the middleware's alone: helpers keep timeoutMs
+      ---
+      duration_ms: 400.951021
+      ...
+    # Subtest: the streaming path goes ahead and is flagged the same way
+    ok 10 - the streaming path goes ahead and is flagged the same way
+      ---
+      duration_ms: 9.266667
+      ...
+    # Subtest: HTTP 400 still throws with skipMemoryOnError on: it will not fix itself
+    ok 11 - HTTP 400 still throws with skipMemoryOnError on: it will not fix itself
+      ---
+      duration_ms: 1.548763
+      ...
+    # Subtest: HTTP 401 still throws with skipMemoryOnError on: it will not fix itself
+    ok 12 - HTTP 401 still throws with skipMemoryOnError on: it will not fix itself
+      ---
+      duration_ms: 1.028664
+      ...
+    # Subtest: HTTP 403 still throws with skipMemoryOnError on: it will not fix itself
+    ok 13 - HTTP 403 still throws with skipMemoryOnError on: it will not fix itself
+      ---
+      duration_ms: 0.741248
+      ...
+    # Subtest: HTTP 404 (a missing space) still throws with skipMemoryOnError on
+    ok 14 - HTTP 404 (a missing space) still throws with skipMemoryOnError on
+      ---
+      duration_ms: 0.998227
+      ...
+    # Subtest: a configuration error found during the lookup still throws
+    ok 15 - a configuration error found during the lookup still throws
+      ---
+      duration_ms: 1.06308
+      ...
+    # Subtest: skipMemoryOnError: false throws on a timeout, naming retrievalTimeoutMs
+    ok 16 - skipMemoryOnError: false throws on a timeout, naming retrievalTimeoutMs
+      ---
+      duration_ms: 80.543418
+      ...
+    # Subtest: validates skipMemoryOnError and retrievalTimeoutMs
+    ok 17 - validates skipMemoryOnError and retrievalTimeoutMs
+      ---
+      duration_ms: 0.748532
+      ...
+    1..17
+ok 4 - middleware when GoodMem is unavailable (skipMemoryOnError, retrievalTimeoutMs)
+  ---
+  duration_ms: 714.66138
+  type: 'suite'
+  ...
+# Subtest: errors say whether a retry can help (isRetryable)
+    # Subtest: HTTP 503: isRetryable is true
+    ok 1 - HTTP 503: isRetryable is true
+      ---
+      duration_ms: 0.598797
+      ...
+    # Subtest: HTTP 429: isRetryable is true
+    ok 2 - HTTP 429: isRetryable is true
+      ---
+      duration_ms: 0.344885
+      ...
+    # Subtest: HTTP 401: isRetryable is false
+    ok 3 - HTTP 401: isRetryable is false
+      ---
+      duration_ms: 0.344224
+      ...
+    # Subtest: HTTP 404: isRetryable is false
+    ok 4 - HTTP 404: isRetryable is false
+      ---
+      duration_ms: 0.370554
+      ...
+    # Subtest: an empty 200 stream: isRetryable is true
+    ok 5 - an empty 200 stream: isRetryable is true
+      ---
+      duration_ms: 0.266556
+      ...
+    # Subtest: an unreachable server and a timeout are retryable; a configuration error is not
+    ok 6 - an unreachable server and a timeout are retryable; a configuration error is not
+      ---
+      duration_ms: 51.689273
+      ...
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- EMBEDDER_FAILED: Embedding failed: Failed to create inference client
+# (node:653514) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- NOT_FOUND: Reranker validation failed: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000 (ID: 00000000-0000-7000-8000-000000000000). Verify the reranker exists and is accessible.; RERANKING_FAILED: Failed to create reranker client: Exception: Reranker not found: 00000000-0000-7000-8000-000000000000
+    1..6
+ok 5 - errors say whether a retry can help (isRetryable)
+  ---
+  duration_ms: 53.833336
   type: 'suite'
   ...
 # Subtest: retrieval status contract
     # Subtest: a clean stream is not partial and logs nothing
     ok 1 - a clean stream is not partial and logs nothing
       ---
-      duration_ms: 7.418097
+      duration_ms: 0.871817
       ...
     # Subtest: Q1: FEATURE_DISABLED is noise by code alone
     ok 2 - Q1: FEATURE_DISABLED is noise by code alone
       ---
-      duration_ms: 0.990281
+      duration_ms: 0.648823
       ...
     # Subtest: Q4a: a degraded retrieval still returns its hits, flagged, with a WARNING log
     ok 3 - Q4a: a degraded retrieval still returns its hits, flagged, with a WARNING log
       ---
-      duration_ms: 0.747279
+      duration_ms: 0.643462
       ...
     # Subtest: Q4b: a degraded retrieval with no hits is flagged, not an empty success, and does not throw
     ok 4 - Q4b: a degraded retrieval with no hits is flagged, not an empty success, and does not throw
       ---
-      duration_ms: 0.4316
+      duration_ms: 0.366516
       ...
     # Subtest: Q3: a status code this build does not know becomes UNKNOWN, partial, results kept
     ok 5 - Q3: a status code this build does not know becomes UNKNOWN, partial, results kept
       ---
-      duration_ms: 0.613615
+      duration_ms: 0.469021
       ...
     # Subtest: a stream that breaks off keeps what arrived and says so
     ok 6 - a stream that breaks off keeps what arrived and says so
       ---
-      duration_ms: 0.603506
+      duration_ms: 0.527963
       ...
     # Subtest: a request that yields no event at all throws rather than reporting "nothing found"
     ok 7 - a request that yields no event at all throws rather than reporting "nothing found"
       ---
-      duration_ms: 0.61115
+      duration_ms: 0.348522
       ...
     # Subtest: an empty space is a clean, empty result
     ok 8 - an empty space is a clean, empty result
       ---
-      duration_ms: 0.513234
+      duration_ms: 0.357118
       ...
     1..8
-ok 3 - retrieval status contract
+ok 6 - retrieval status contract
   ---
-  duration_ms: 12.118142
+  duration_ms: 4.414858
   type: 'suite'
   ...
 # Subtest: degraded retrieval surfaces through tools, middleware and helpers
     # Subtest: tool: the model receives partial, statuses and a warning
     ok 1 - tool: the model receives partial, statuses and a warning
       ---
-      duration_ms: 7.727305
+      duration_ms: 5.030989
       ...
     # Subtest: middleware: the injected text says retrieval failed, and the call carries a warning and partial metadata
     ok 2 - middleware: the injected text says retrieval failed, and the call carries a warning and partial metadata
       ---
-      duration_ms: 1.617181
+      duration_ms: 1.037872
       ...
     # Subtest: middleware (streaming): warning and partial metadata reach streamText
     ok 3 - middleware (streaming): warning and partial metadata reach streamText
       ---
-      duration_ms: 9.606423
+      duration_ms: 3.592587
       ...
     # Subtest: retrieveMemories: the context says results may be missing
     ok 4 - retrieveMemories: the context says results may be missing
       ---
-      duration_ms: 0.855695
+      duration_ms: 0.728785
       ...
     1..4
-ok 4 - degraded retrieval surfaces through tools, middleware and helpers
+ok 7 - degraded retrieval surfaces through tools, middleware and helpers
   ---
-  duration_ms: 19.923285
+  duration_ms: 10.501504
   type: 'suite'
   ...
 # Subtest: failures throw, carrying the server's explanation
     # Subtest: an HTTP error keeps its status and body
     ok 1 - an HTTP error keeps its status and body
       ---
-      duration_ms: 0.807102
+      duration_ms: 0.538283
       ...
     # Subtest: an unreachable server says which URL and why
     ok 2 - an unreachable server says which URL and why
       ---
-      duration_ms: 0.336679
+      duration_ms: 0.278068
       ...
     # Subtest: tool: a failed request becomes an AI SDK tool error with the server message
     ok 3 - tool: a failed request becomes an AI SDK tool error with the server message
       ---
-      duration_ms: 2.06947
+      duration_ms: 2.043142
       ...
-    # Subtest: middleware: an unreachable server fails the call; the model is never called with no memories
-    ok 4 - middleware: an unreachable server fails the call; the model is never called with no memories
+    # Subtest: middleware with skipMemoryOnError: false: an unreachable server fails the call; the model is never called
+    ok 4 - middleware with skipMemoryOnError: false: an unreachable server fails the call; the model is never called
       ---
-      duration_ms: 0.750224
+      duration_ms: 0.628865
       ...
     1..4
-ok 5 - failures throw, carrying the server's explanation
+ok 8 - failures throw, carrying the server's explanation
   ---
-  duration_ms: 4.108593
+  duration_ms: 3.585602
   type: 'suite'
   ...
 # Subtest: timeouts and cancellation
     # Subtest: a request that never answers is cut off at timeoutMs
     ok 1 - a request that never answers is cut off at timeoutMs
       ---
-      duration_ms: 151.412076
+      duration_ms: 151.34238
       ...
     # Subtest: a stream that stalls mid-way is cut off too, keeping what arrived
     ok 2 - a stream that stalls mid-way is cut off too, keeping what arrived
       ---
-      duration_ms: 151.671409
+      duration_ms: 152.235777
       ...
     # Subtest: every request the package makes carries an abort signal
     ok 3 - every request the package makes carries an abort signal
       ---
-      duration_ms: 2.721999
+      duration_ms: 3.845367
       ...
     # Subtest: a caller abort cancels the request and is rethrown as the abort
     ok 4 - a caller abort cancels the request and is rethrown as the abort
       ---
-      duration_ms: 30.875503
+      duration_ms: 29.972149
       ...
     # Subtest: middleware forwards the call's abortSignal to GoodMem
     ok 5 - middleware forwards the call's abortSignal to GoodMem
       ---
-      duration_ms: 31.155225
+      duration_ms: 29.994651
       ...
     1..5
-ok 6 - timeouts and cancellation
+ok 9 - timeouts and cancellation
   ---
-  duration_ms: 368.10908
+  duration_ms: 367.738396
   type: 'suite'
   ...
 # Subtest: scores
     # Subtest: vector scores are flipped to higher-is-better, raw kept, order preserved
     ok 1 - vector scores are flipped to higher-is-better, raw kept, order preserved
       ---
-      duration_ms: 0.464452
+      duration_ms: 0.712724
       ...
     # Subtest: reranker scores come from the rerank stage and are never flipped
     ok 2 - reranker scores come from the rerank stage and are never flipped
       ---
-      duration_ms: 0.550044
+      duration_ms: 0.603006
       ...
     # Subtest: a reranker that failed does not mislabel the vector scores that came back
     ok 3 - a reranker that failed does not mislabel the vector scores that came back
       ---
-      duration_ms: 0.424376
+      duration_ms: 0.550075
       ...
     # Subtest: minScore filters reranker scores only, and warns with the observed range when it removes everything
     ok 4 - minScore filters reranker scores only, and warns with the observed range when it removes everything
       ---
-      duration_ms: 0.729796
+      duration_ms: 0.923064
       ...
     # Subtest: sends no reranker or threshold unless configured
     ok 5 - sends no reranker or threshold unless configured
       ---
-      duration_ms: 0.351537
+      duration_ms: 0.472267
       ...
     # Subtest: orientScore flips only vector scores
     ok 6 - orientScore flips only vector scores
       ---
-      duration_ms: 0.054874
+      duration_ms: 0.070223
       ...
     1..6
-ok 7 - scores
+ok 10 - scores
   ---
-  duration_ms: 2.678928
+  duration_ms: 3.471546
   type: 'suite'
   ...
 # Subtest: stream joining
     # Subtest: joins chunks to memories by UUID, whatever the order and memoryIndex
     ok 1 - joins chunks to memories by UUID, whatever the order and memoryIndex
       ---
-      duration_ms: 0.450615
+      duration_ms: 0.540156
       ...
     # Subtest: de-duplicates by chunk id, never by memory id
     ok 2 - de-duplicates by chunk id, never by memory id
       ---
-      duration_ms: 0.454784
+      duration_ms: 0.61026
       ...
     1..2
-ok 8 - stream joining
+ok 11 - stream joining
   ---
-  duration_ms: 0.95341
+  duration_ms: 1.212453
   type: 'suite'
   ...
 # Subtest: content decoding
     # Subtest: includeContent returns text as text and a PDF as base64, byte-identical
     ok 1 - includeContent returns text as text and a PDF as base64, byte-identical
       ---
-      duration_ms: 0.604829
+      duration_ms: 0.848923
       ...
     # Subtest: does not ask for content unless requested
     ok 2 - does not ask for content unless requested
       ---
-      duration_ms: 0.329216
+      duration_ms: 0.438233
       ...
     # Subtest: decodes by content type and charset, and keeps undecodable text as base64
     ok 3 - decodes by content type and charset, and keeps undecodable text as base64
       ---
-      duration_ms: 0.198257
+      duration_ms: 0.303447
       ...
     1..3
-ok 9 - content decoding
+ok 12 - content decoding
   ---
-  duration_ms: 1.197805
+  duration_ms: 1.675664
   type: 'suite'
   ...
 # Subtest: tools
     # Subtest: the model is offered exactly two tools, with minimal inputs (as sent to the provider)
     ok 1 - the model is offered exactly two tools, with minimal inputs (as sent to the provider)
       ---
-      duration_ms: 1.362838
+      duration_ms: 1.91005
       ...
     # Subtest: round-trips through generateText: the model calls searchMemories and receives real results
     ok 2 - round-trips through generateText: the model calls searchMemories and receives real results
       ---
-      duration_ms: 2.063018
+      duration_ms: 2.543372
       ...
     # Subtest: addMemory stores text in the configured space with the scope, and does not wait
     ok 3 - addMemory stores text in the configured space with the scope, and does not wait
       ---
-      duration_ms: 1.862717
+      duration_ms: 2.018896
       ...
     # Subtest: an out-of-range topK from the model is rejected before any request
     ok 4 - an out-of-range topK from the model is rejected before any request
       ---
-      duration_ms: 2.335074
+      duration_ms: 1.886184
       ...
     1..4
-ok 10 - tools
+ok 13 - tools
   ---
-  duration_ms: 7.716464
+  duration_ms: 8.527122
   type: 'suite'
   ...
 # Subtest: middleware
     # Subtest: appends memories to the leading system message, or adds one
     ok 1 - appends memories to the leading system message, or adds one
       ---
-      duration_ms: 1.829384
+      duration_ms: 1.795401
       ...
     # Subtest: position 'user' prepends memories to the latest user message
     ok 2 - position 'user' prepends memories to the latest user message
       ---
-      duration_ms: 0.883709
+      duration_ms: 0.903617
       ...
     # Subtest: a template controls the injected text; returning an empty string injects nothing
     ok 3 - a template controls the injected text; returning an empty string injects nothing
       ---
-      duration_ms: 1.676003
+      duration_ms: 1.924296
       ...
     # Subtest: does not modify the caller's messages or put memories into the conversation
     ok 4 - does not modify the caller's messages or put memories into the conversation
       ---
-      duration_ms: 1.157468
+      duration_ms: 0.970484
       ...
     # Subtest: a call with no user text is passed through without a retrieval
     ok 5 - a call with no user text is passed through without a retrieval
       ---
-      duration_ms: 0.501472
+      duration_ms: 0.60519
       ...
     # Subtest: searches the latest user message and reports the memories used
     ok 6 - searches the latest user message and reports the memories used
       ---
-      duration_ms: 0.849723
+      duration_ms: 1.004068
       ...
     1..6
-ok 11 - middleware
+ok 14 - middleware
   ---
-  duration_ms: 7.021574
+  duration_ms: 7.354063
   type: 'suite'
   ...
 # Subtest: writes
     # Subtest: never sends publicRead (the server rejects it with HTTP 400)
     ok 1 - never sends publicRead (the server rejects it with HTTP 400)
       ---
-      duration_ms: 1.219345
+      duration_ms: 1.441359
       ...
     # Subtest: uploads a PDF as bytes with its content type, as multipart through the SDK
     ok 2 - uploads a PDF as bytes with its content type, as multipart through the SDK
       ---
-      duration_ms: 0.980121
+      duration_ms: 1.165334
       ...
     # Subtest: validates every input before writing anything
     ok 3 - validates every input before writing anything
       ---
-      duration_ms: 0.328734
+      duration_ms: 0.36857
       ...
     # Subtest: a failure part-way reports the memories already stored and where to resume
     ok 4 - a failure part-way reports the memories already stored and where to resume
       ---
-      duration_ms: 0.622803
+      duration_ms: 0.762118
       ...
     # Subtest: does not wait for indexing unless asked
     ok 5 - does not wait for indexing unless asked
       ---
-      duration_ms: 0.317112
+      duration_ms: 0.338694
       ...
     # Subtest: waitForIndexing polls only the memories it created until they complete
     ok 6 - waitForIndexing polls only the memories it created until they complete
       ---
-      duration_ms: 13.054511
+      duration_ms: 12.113106
       ...
     # Subtest: a memory that fails processing is reported, and the write is said to have succeeded
     ok 7 - a memory that fails processing is reported, and the write is said to have succeeded
       ---
-      duration_ms: 1.034825
+      duration_ms: 1.603326
       ...
     # Subtest: a wait that runs out is bounded and reported as pending, not failed
     ok 8 - a wait that runs out is bounded and reported as pending, not failed
       ---
-      duration_ms: 60.964284
+      duration_ms: 60.945671
       ...
     1..8
-ok 12 - writes
+ok 15 - writes
   ---
-  duration_ms: 78.744729
+  duration_ms: 79.033187
   type: 'suite'
   ...
 # Subtest: named space: create, reuse and pagination
     # Subtest: follows the listing to a match on the second page and reuses it
     ok 1 - follows the listing to a match on the second page and reuses it
       ---
-      duration_ms: 1.150354
+      duration_ms: 1.310079
       ...
     # Subtest: creates the space with the requested embedder when none exists, then reuses it
     ok 2 - creates the space with the requested embedder when none exists, then reuses it
       ---
-      duration_ms: 0.921981
+      duration_ms: 1.261907
       ...
     # Subtest: refuses to reuse a same-named space indexed by another embedder, naming both
     ok 3 - refuses to reuse a same-named space indexed by another embedder, naming both
       ---
-      duration_ms: 0.549884
+      duration_ms: 0.740477
       ...
     # Subtest: refuses to guess between two spaces with the same name
     ok 4 - refuses to guess between two spaces with the same name
       ---
-      duration_ms: 0.349544
+      duration_ms: 0.851589
       ...
     # Subtest: a server that repeats a page token fails loudly instead of looping
     ok 5 - a server that repeats a page token fails loudly instead of looping
       ---
-      duration_ms: 0.444995
+      duration_ms: 0.822262
       ...
     # Subtest: a runaway listing is bounded and refused, never silently truncated
     ok 6 - a runaway listing is bounded and refused, never silently truncated
       ---
-      duration_ms: 27.63016
+      duration_ms: 38.155247
       ...
     # Subtest: a space created concurrently by someone else (409) is found and reused
     ok 7 - a space created concurrently by someone else (409) is found and reused
       ---
-      duration_ms: 1.071946
+      duration_ms: 1.287747
       ...
     # Subtest: a rejected create carries the server's field-level message
     ok 8 - a rejected create carries the server's field-level message
       ---
-      duration_ms: 0.486244
+      duration_ms: 1.069302
       ...
     1..8
-ok 13 - named space: create, reuse and pagination
+ok 16 - named space: create, reuse and pagination
   ---
-  duration_ms: 32.945324
+  duration_ms: 45.791748
   type: 'suite'
   ...
 # Subtest: filters
     # Subtest: escapes an apostrophe with a backslash, not by doubling, and doubles backslashes
     ok 1 - escapes an apostrophe with a backslash, not by doubling, and doubles backslashes
       ---
-      duration_ms: 0.071636
+      duration_ms: 0.45742
       ...
     # Subtest: refuses control characters
     ok 2 - refuses control characters
       ---
-      duration_ms: 0.075824
+      duration_ms: 0.113595
       ...
     # Subtest: casts booleans as BOOLEAN and numbers as NUMERIC, never as TEXT
     ok 3 - casts booleans as BOOLEAN and numbers as NUMERIC, never as TEXT
       ---
-      duration_ms: 0.040567
+      duration_ms: 0.057109
       ...
     # Subtest: refuses unsafe and hyphenated field names, allows nested ones
     ok 4 - refuses unsafe and hyphenated field names, allows nested ones
       ---
-      duration_ms: 0.048262
+      duration_ms: 0.06311
       ...
     # Subtest: builds comparisons, sets, negation and combinations
     ok 5 - builds comparisons, sets, negation and combinations
       ---
-      duration_ms: 0.159272
+      duration_ms: 0.213847
       ...
     # Subtest: scope and filter reach every space key, and an injection payload stays a literal
     ok 6 - scope and filter reach every space key, and an injection payload stays a literal
       ---
-      duration_ms: 0.360214
+      duration_ms: 0.482957
       ...
     1..6
-ok 14 - filters
+ok 17 - filters
   ---
-  duration_ms: 0.830296
+  duration_ms: 1.492726
   type: 'suite'
   ...
 # Subtest: secrets and isolation
     # Subtest: the API key never appears in tools, wrapped models, results or errors
     ok 1 - the API key never appears in tools, wrapped models, results or errors
       ---
-      duration_ms: 4.659097
+      duration_ms: 9.583419
       ...
     # Subtest: the key is sent only in the x-api-key header
     ok 2 - the key is sent only in the x-api-key header
       ---
-      duration_ms: 0.34189
+      duration_ms: 0.517694
       ...
     # Subtest: two configurations keep their own client, spaces and scope
     ok 3 - two configurations keep their own client, spaces and scope
       ---
-      duration_ms: 1.113004
+      duration_ms: 1.371967
       ...
     1..3
-ok 15 - secrets and isolation
+ok 18 - secrets and isolation
   ---
-  duration_ms: 6.179695
+  duration_ms: 11.560977
   type: 'suite'
   ...
 # Subtest: README
     # Subtest: every TypeScript example compiles against the package
     ok 1 - every TypeScript example compiles against the package
       ---
-      duration_ms: 743.773941
+      duration_ms: 816.96828
       ...
     1..1
-ok 16 - README
+ok 19 - README
   ---
-  duration_ms: 743.842893
+  duration_ms: 817.055305
   type: 'suite'
   ...
-1..16
-# tests 77
-# suites 16
-# pass 77
+1..19
+# tests 107
+# suites 19
+# pass 107
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1471.757496
+# duration_ms 2348.987259
 exit=0
