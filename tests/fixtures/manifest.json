@@ -1,0 +1,102 @@
+{
+  "capturedAt": "2026-09-30T12:55:09.257Z",
+  "files": {
+    "space_create.json": {
+      "method": "POST",
+      "path": "/v1/spaces",
+      "status": 201,
+      "contentType": "application/json"
+    },
+    "memory_create.json": {
+      "method": "POST",
+      "path": "/v1/memories",
+      "status": 201,
+      "contentType": "application/json"
+    },
+    "memory_get_pending.json": {
+      "method": "GET",
+      "path": "/v1/memories/{id}",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    "memory_get_completed.json": {
+      "method": "GET",
+      "path": "/v1/memories/{id}",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    "retrieve_ok.ndjson": {
+      "method": "POST",
+      "path": "/v1/memories:retrieve",
+      "status": 200,
+      "contentType": "application/x-ndjson; charset=utf-8"
+    },
+    "retrieve_rerank_failed.ndjson": {
+      "method": "POST",
+      "path": "/v1/memories:retrieve",
+      "status": 200,
+      "contentType": "application/x-ndjson; charset=utf-8"
+    },
+    "retrieve_reranked.ndjson": {
+      "method": "POST",
+      "path": "/v1/memories:retrieve",
+      "status": 200,
+      "contentType": "application/x-ndjson; charset=utf-8"
+    },
+    "retrieve_with_content.ndjson": {
+      "method": "POST",
+      "path": "/v1/memories:retrieve",
+      "status": 200,
+      "contentType": "application/x-ndjson; charset=utf-8"
+    },
+    "retrieve_empty.ndjson": {
+      "method": "POST",
+      "path": "/v1/memories:retrieve",
+      "status": 200,
+      "contentType": "application/x-ndjson; charset=utf-8"
+    },
+    "spaces_page1.json": {
+      "method": "GET",
+      "path": "/v1/spaces?nameFilter=aisdk-fxmuo3yc3t*&maxResults=1",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    "spaces_page2.json": {
+      "method": "GET",
+      "path": "/v1/spaces?nameFilter=aisdk-fxmuo3yc3t*&maxResults=1&nextToken=UAHCAhFhaXNkay1meG11bzN5YzN0KpIDEAGc_P83xXbQvUaFJeKanIKwBAA",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    "retrieve_embedder_failed.ndjson": {
+      "method": "POST",
+      "path": "/v1/memories:retrieve",
+      "status": 200,
+      "contentType": "application/x-ndjson; charset=utf-8"
+    },
+    "error_space_create_400.json": {
+      "method": "POST",
+      "path": "/v1/spaces",
+      "status": 400,
+      "contentType": "application/json"
+    },
+    "error_space_create_409.json": {
+      "method": "POST",
+      "path": "/v1/spaces",
+      "status": 409,
+      "contentType": "application/json"
+    },
+    "error_retrieve_missing_space.json": {
+      "method": "POST",
+      "path": "/v1/memories:retrieve",
+      "status": 404,
+      "contentType": "application/json"
+    },
+    "error_space_publicread_400.json": {
+      "method": "PUT",
+      "path": "/v1/spaces/{id}",
+      "status": 400,
+      "contentType": "application/json"
+    }
+  },
+  "serverVersion": "server-v1.0.323"
+}

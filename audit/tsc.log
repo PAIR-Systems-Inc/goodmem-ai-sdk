@@ -1,0 +1,8 @@
+# Type checks
+# commit 948d88f, 2026-09-30T16:06:11Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
+
+$ npx tsc --noEmit
+exit=0
+
+$ npx tsc --noEmit -p tsconfig.test.json
+exit=0

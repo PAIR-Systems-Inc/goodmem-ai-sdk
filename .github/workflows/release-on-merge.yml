@@ -1,0 +1,61 @@
+name: Release on merge
+
+# Publishes a merged version bump without a hand-pushed tag. When the CI
+# workflow passes on a push to main, this reads the version in package.json.
+# If tag v<version> does not exist yet, it tags the merged commit and starts
+# publish.yml on the tag, which builds and publishes with npm Trusted
+# Publishing. If npm already has that version, it only tags. A merge that
+# leaves the version unchanged releases nothing.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write  # create the v<version> tag
+  actions: write   # start publish.yml on it
+
+concurrency:
+  group: release-on-merge
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and publish a new version
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Read the package version
+        id: version
+        run: |
+          set -euo pipefail
+          echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Tag and publish if this version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.version.outputs.name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --silent 2>/dev/null; then
+            echo "$tag already exists; nothing to release."
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" --silent
+          echo "Tagged $SHA as $tag."
+          if npm view "$NAME@$VERSION" version > /dev/null 2>&1; then
+            echo "$NAME $VERSION is already on npm; tagged it without publishing again."
+            exit 0
+          fi
+          gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref "$tag"
+          echo "Started publish.yml on $tag."

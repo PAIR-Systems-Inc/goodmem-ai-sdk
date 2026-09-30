@@ -1,0 +1,150 @@
+# Types, the offline suite, the README check and the security gates, on every
+# push and pull request. The test job runs against both AI SDK majors the
+# package supports: ai 6 with zod 3 on Node 20, ai 6 and ai 7 with zod 4 on
+# Node 22 (ai 7 itself requires Node 22).
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}, ai ${{ matrix.ai }}, zod ${{ matrix.zod }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: "20.x"
+            ai: "^6.0.0"
+            zod: "3.25.76"
+          - node: "22.x"
+            ai: "^6.0.0"
+            zod: "^4.1.8"
+          - node: "22.x"
+            ai: "^7.0.0"
+            zod: "^4.1.8"
+    env:
+      AI_RANGE: ${{ matrix.ai }}
+      ZOD_RANGE: ${{ matrix.zod }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Use this job's ai and zod
+        run: |
+          set -euo pipefail
+          npm install --no-save "ai@${AI_RANGE}" "zod@${ZOD_RANGE}"
+          node -e "console.log('ai', require('ai/package.json').version, '/ zod', require('zod/package.json').version)"
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Types of the tests and scripts
+        run: npx tsc --noEmit -p tsconfig.test.json
+
+      - name: Offline suite, with the environment cleared
+        run: env -u GOODMEM_API_KEY -u GOODMEM_BASE_URL -u GOODMEM_TEST_EMBEDDER_ID npm test
+
+      - name: Live suite must skip without credentials
+        run: |
+          set -euo pipefail
+          # TAP explicitly: Node 22's default reporter is not TAP when piped.
+          env -u GOODMEM_API_KEY -u GOODMEM_BASE_URL -u GOODMEM_TEST_EMBEDDER_ID \
+            npx tsx --test --test-reporter=tap tests/goodmem_live_test.ts > live.log 2>&1
+          cat live.log
+          if ! grep -q "# SKIP GOODMEM_API_KEY" live.log || ! grep -qE "^# pass 0$" live.log; then
+            echo "A live test ran without credentials -- a key may be baked in."
+            exit 1
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: README examples type-check and every named identifier exists
+        run: npm run check:readme
+
+      - name: The packed package installs and loads in a clean directory
+        run: |
+          set -euo pipefail
+          PKG="$(npm pack --silent)"
+          CLEAN="$(mktemp -d)"
+          mv "$PKG" "$CLEAN/"
+          cd "$CLEAN"
+          npm init -y > /dev/null
+          npm install "./$PKG" "ai@${AI_RANGE}" "zod@${ZOD_RANGE}" > /dev/null
+          EXPECTED="addMemories filters goodmemTools retrieveMemories searchMemories withGoodmem"
+          node -e "const m = require('@pairsystems/goodmem-ai-sdk'); for (const k of process.argv[1].split(' ')) { if (!m[k]) throw new Error('require: missing ' + k); } console.log('require ok');" "$EXPECTED"
+          node --input-type=module -e "const m = await import('@pairsystems/goodmem-ai-sdk'); for (const k of process.argv[1].split(' ')) { if (!m[k]) throw new Error('import: missing ' + k); } console.log('import ok');" "$EXPECTED"
+          if tar -tzf "$PKG" | grep -vE '^package/(lib/|package\.json$|README\.md$|LICENSE$)'; then
+            echo "The tarball ships files outside lib/."
+            exit 1
+          fi
+
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No GoodMem API key in any tracked file
+        run: |
+          set -euo pipefail
+          if git ls-files -z | xargs -0 grep -IEn '(^|[^A-Za-z0-9_])gm_[A-Za-z0-9]{20,}([^A-Za-z0-9_]|$)'; then
+            echo "A GoodMem API key is committed to this repository."
+            exit 1
+          fi
+          echo "No credential-shaped string in any tracked file."
+
+      - name: TLS verification is never disabled, in code, tests or docs
+        run: |
+          set -euo pipefail
+          # Assembled from pieces so this file does not match itself.
+          PATTERN="NODE_TLS_REJECT""_UNAUTHORIZED|reject""Unauthorized|strict""SSL|GOODMEM_VERIFY""_SSL"
+          if git ls-files -z | xargs -0 grep -IEn "$PATTERN"; then
+            echo "TLS certificate verification must never be disabled."
+            exit 1
+          fi
+          echo "Nothing disables TLS verification."
+
+      - name: src reaches GoodMem only through the SDK; only src/env.ts reads the environment, for two variables
+        run: |
+          set -euo pipefail
+          if grep -rnE '\bfetch\(|XMLHttpRequest|node:https?|axios|undici' src; then
+            echo "src/ must talk to GoodMem only through @pairsystems/goodmem."
+            exit 1
+          fi
+          if grep -rnE '\bprocess[[:space:]]*(\.|\?\.|\[)|import\.meta\.env|Deno\.env|Bun\.env' --exclude=env.ts src; then
+            echo "Only src/env.ts may read the environment."
+            exit 1
+          fi
+          # Every use of process in env.ts, comments aside, must be one of these.
+          READS="$(grep -vE '^[[:space:]]*(\*|//|/\*)' src/env.ts | grep -oE '\bprocess\b[^[:space:];,)]*' | sort -u | tr '\n' ' ')"
+          if [ "$READS" != "process process.env.GOODMEM_API_KEY process.env.GOODMEM_BASE_URL " ]; then
+            echo "src/env.ts may read only GOODMEM_API_KEY and GOODMEM_BASE_URL; found: $READS"
+            exit 1
+          fi
+          echo "src/ uses the GoodMem SDK only; the environment is read only in src/env.ts, for GOODMEM_API_KEY and GOODMEM_BASE_URL."
+
+      - name: publicRead is never sent
+        run: |
+          set -euo pipefail
+          if grep -rnE 'publicRead|public_read' src; then
+            echo "The server rejects publicRead with HTTP 400; it must not appear in src/."
+            exit 1
+          fi
+          echo "publicRead appears nowhere in src/."

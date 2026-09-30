@@ -1,0 +1,67 @@
+# Workflow checks, commit 948d88f, 2026-09-30T16:09:11Z
+
+## 1. Every run: step extracted from the YAML and checked with bash -n
+ok   bash -n  ci.yml / test / Install  -> ci__test__02.sh
+ok   bash -n  ci.yml / test / Use this job's ai and zod  -> ci__test__03.sh
+ok   bash -n  ci.yml / test / Types  -> ci__test__04.sh
+ok   bash -n  ci.yml / test / Types of the tests and scripts  -> ci__test__05.sh
+ok   bash -n  ci.yml / test / Offline suite, with the environment cleared  -> ci__test__06.sh
+ok   bash -n  ci.yml / test / Live suite must skip without credentials  -> ci__test__07.sh
+ok   bash -n  ci.yml / test / Build  -> ci__test__08.sh
+ok   bash -n  ci.yml / test / README examples type-check and every named identifier exists  -> ci__test__09.sh
+ok   bash -n  ci.yml / test / The packed package installs and loads in a clean directory  -> ci__test__10.sh
+ok   bash -n  ci.yml / gates / No GoodMem API key in any tracked file  -> ci__gates__01.sh
+ok   bash -n  ci.yml / gates / TLS verification is never disabled, in code, tests or docs  -> ci__gates__02.sh
+ok   bash -n  ci.yml / gates / src reaches GoodMem only through the SDK; only src/env.ts reads the environment, for two variables  -> ci__gates__03.sh
+ok   bash -n  ci.yml / gates / publicRead is never sent  -> ci__gates__04.sh
+--   ci.yml: 13 run step(s) extracted
+ok   bash -n  publish.yml / build / Install  -> publish__build__02.sh
+ok   bash -n  publish.yml / build / Types  -> publish__build__03.sh
+ok   bash -n  publish.yml / build / Offline suite  -> publish__build__04.sh
+ok   bash -n  publish.yml / build / Build  -> publish__build__05.sh
+ok   bash -n  publish.yml / build / README check against the built types  -> publish__build__06.sh
+ok   bash -n  publish.yml / build / Pack  -> publish__build__07.sh
+ok   bash -n  publish.yml / publish / The tag matches package.json  -> publish__publish__02.sh
+ok   bash -n  publish.yml / publish / Upgrade npm for Trusted Publishing support  -> publish__publish__03.sh
+ok   bash -n  publish.yml / publish / Install  -> publish__publish__04.sh
+ok   bash -n  publish.yml / publish / Build  -> publish__publish__05.sh
+ok   bash -n  publish.yml / publish / Publish via Trusted Publishing  -> publish__publish__06.sh
+--   publish.yml: 11 run step(s) extracted
+ok   bash -n  release-on-merge.yml / release / Read the package version  -> release-on-merge__release__01.sh
+ok   bash -n  release-on-merge.yml / release / Tag and publish if this version is new  -> release-on-merge__release__02.sh
+--   release-on-merge.yml: 2 run step(s) extracted
+exit=0
+
+## 2. actionlint (with shellcheck integration) and shellcheck on the extracted scripts
+actionlint exit=0
+shellcheck exit=0
+
+## 3. Gate steps run on the tree (lib/ and node_modules/ present: lib node_modules )
+--- ci__gates__01.sh
+grep: audit/workflow-checks.log: input file is also the output
+No credential-shaped string in any tracked file.
+exit=0
+--- ci__gates__02.sh
+grep: audit/workflow-checks.log: input file is also the output
+Nothing disables TLS verification.
+exit=0
+--- ci__gates__03.sh
+src/ uses the GoodMem SDK only; the environment is read only in src/env.ts, for GOODMEM_API_KEY and GOODMEM_BASE_URL.
+exit=0
+--- ci__gates__04.sh
+publicRead appears nowhere in src/.
+exit=0
+
+## 4. Each gate pattern trips on a violation and ignores known false positives
+key gate matches a 26-char key: 1
+key gate matches the test key or the scipy symbol (want 0): 0
+TLS gate matches both bypasses (want 2): 2
+src gate on a direct fetch( call in tools.ts (want 1): exit=1
+src gate on process.env.GOODMEM_API_KEY read in config.ts (want 1): exit=1
+src gate on a third variable read in env.ts (want 1): exit=1
+src gate on bracket access in env.ts (want 1): exit=1
+src gate on a whole-environment dump in env.ts (want 1): exit=1
+
+## 5. The live-skip step, run as CI runs it, on Node 20 and Node 24
+node v20.20.0: exit=0
+node v24.14.0: exit=0
