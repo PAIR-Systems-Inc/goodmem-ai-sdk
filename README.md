@@ -15,7 +15,17 @@ and **7**, and Node **20** and later. See [Compatibility](#compatibility).
 npm install @pairsystems/goodmem-ai-sdk ai zod
 ```
 
-`ai` and `zod` are peer dependencies, so the package uses your copies.
+With another package manager:
+
+```bash
+pnpm add @pairsystems/goodmem-ai-sdk ai zod
+yarn add @pairsystems/goodmem-ai-sdk ai zod
+bun add @pairsystems/goodmem-ai-sdk ai zod
+```
+
+`ai` and `zod` are peer dependencies, so the package uses your copies. All
+four package managers install it without peer warnings, and it also runs on
+the Bun runtime.
 
 ## Configure
 
