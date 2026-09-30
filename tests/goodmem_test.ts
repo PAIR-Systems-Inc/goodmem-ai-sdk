@@ -153,7 +153,7 @@ describe('configuration', () => {
       );
       assert.throws(
         () => goodmemTools({ ...base, baseUrl: undefined }),
-        /baseUrl is required: pass baseUrl, or set the GOODMEM_BASE_URL environment variable, e\.g\. https:\/\/gm-<name>-<id>\.cloud\.goodmem\.ai or http:\/\/localhost:8080\. There is no default server\. Get an instance URL and API key from GoodMem Cloud at https:\/\/cloud\.goodmem\.ai\/login/
+        /baseUrl is required: pass baseUrl, or set the GOODMEM_BASE_URL environment variable, e\.g\. https:\/\/gm-<name>-<id>\.app\.goodmem\.ai or http:\/\/localhost:8080\. There is no default server\. Get an instance URL and API key from GoodMem Cloud at https:\/\/cloud\.goodmem\.ai\/login/
       );
     });
     assert.throws(() => goodmemTools({ ...base, apiKey: '' }), /apiKey is empty: .*or omit apiKey to use GOODMEM_API_KEY/);

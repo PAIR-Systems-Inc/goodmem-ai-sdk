@@ -39,7 +39,7 @@ export interface GoodmemConfig {
    */
   apiKey?: string;
   /**
-   * The GoodMem server URL, e.g. `https://gm-<name>-<id>.cloud.goodmem.ai` or
+   * The GoodMem server URL, e.g. `https://gm-<name>-<id>.app.goodmem.ai` or
    * `http://localhost:8080`. When omitted, the `GOODMEM_BASE_URL` environment
    * variable is used; an explicit value always wins. There is no default server.
    */
@@ -179,7 +179,7 @@ export function connect(
     fail(
       entry,
       `baseUrl is required: pass baseUrl, or set the ${BASE_URL_ENV} environment variable, e.g. ` +
-        `https://gm-<name>-<id>.cloud.goodmem.ai or http://localhost:8080. There is no default server. ${GET_STARTED}.`
+        `https://gm-<name>-<id>.app.goodmem.ai or http://localhost:8080. There is no default server. ${GET_STARTED}.`
     );
   }
   if (!nonEmptyString(baseUrl)) {

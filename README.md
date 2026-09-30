@@ -35,8 +35,13 @@ You need a GoodMem server URL and an API key for it.
   [cloud.goodmem.ai/login](https://cloud.goodmem.ai/login) with Google or
   GitHub. The free 14-day trial needs no credit card, and a trial instance is
   provisioned automatically. Instance URLs look like
-  `https://gm-<name>-<id>.cloud.goodmem.ai`; take the URL and an API key from
-  the GoodMem Cloud app.
+  `https://gm-<name>-<id>.app.goodmem.ai`; take the URL and an API key from
+  the GoodMem Cloud app. To get a first space, open Quick Start in the
+  instance's console (`https://gm-<name>-<id>.app.goodmem.ai/console/quick-start`)
+  and paste an API key from a model provider -- OpenAI, OpenRouter, Voyage,
+  Cohere, Jina, Gemini or DashScope. One click creates an embedder and a first
+  space (plus an LLM and a reranker where that provider offers them); use that
+  space's id as `spaceId`.
 - **Self-hosted.** Install a server with
   `curl -s https://get.goodmem.ai | bash` (see
   [docs.goodmem.ai](https://docs.goodmem.ai)), then use its URL and an API key
@@ -46,7 +51,7 @@ You need a GoodMem server URL and an API key for it.
 Then either put them in the environment:
 
 ```bash
-export GOODMEM_BASE_URL=https://gm-<name>-<id>.cloud.goodmem.ai
+export GOODMEM_BASE_URL=https://gm-<name>-<id>.app.goodmem.ai
 export GOODMEM_API_KEY=<your-api-key>
 ```
 
@@ -65,7 +70,7 @@ const goodmem: GoodmemConfig = { spaceId: '<space-uuid>' };
 // The same, with the server and key passed explicitly:
 const explicit: GoodmemConfig = {
   apiKey: '<your-api-key>',
-  baseUrl: 'https://gm-<name>-<id>.cloud.goodmem.ai',
+  baseUrl: 'https://gm-<name>-<id>.app.goodmem.ai',
   spaceId: '<space-uuid>',
 };
 ```
@@ -173,6 +178,9 @@ most relevant first". The middleware takes the shared configuration plus:
 | `template` | the result's `context` | `(retrieved) => string` builds the injected text; return `''` to inject nothing. |
 | `skipMemoryOnError` | `true` | When GoodMem is unavailable, call the model anyway (flagged) instead of failing the call. See below. |
 | `retrievalTimeoutMs` | `5000` | Upper bound on each call's memory lookup, space lookup included. Only the middleware uses it; everything else keeps `timeoutMs`. |
+| `addMemory` | `'never'` | `'always'` saves the durable facts the user states. See [Automatic saving](#automatic-saving). |
+| `extractionModel` | the wrapped model | The model that extracts those facts. |
+| `extractFacts` | none | Your own extraction function, instead of a model. |
 
 ```ts
 import { openai } from '@ai-sdk/openai';
@@ -196,7 +204,8 @@ multi-step tool loop it runs again, with the same user message, for each step.
 
 The outcome of each call's search is on the result as
 `providerMetadata.goodmem`: `partial`, `resultCount`, `memoryIds` and
-`statuses`. It works the same way with `streamText`.
+`statuses`, plus `saved` or `saveError` when [automatic saving](#automatic-saving)
+ran. It works the same way with `streamText`.
 
 ### When GoodMem is unavailable
 
@@ -226,6 +235,59 @@ within the 5 s default (Voyage took about 0.3 s against the test server), but a
 slow one may not: Qwen3 through OpenRouter took anywhere from 1 s to over 30 s
 on the same server. With a slow embedder, raise `retrievalTimeoutMs`, or expect
 some calls to go ahead without memories, flagged as above.
+
+### Automatic saving
+
+Off by default. With `addMemory: 'always'` the middleware also saves what the
+user tells it about themselves:
+
+```ts
+import { openai } from '@ai-sdk/openai';
+import { withGoodmem } from '@pairsystems/goodmem-ai-sdk';
+
+const model = withGoodmem(openai('gpt-4o'), {
+  spaceId: '<space-uuid>',
+  scope: { userId: 'u-123' },
+  addMemory: 'always',
+  extractionModel: openai('gpt-4o-mini'), // optional: a cheaper model for extraction
+});
+```
+
+On each user turn it makes one extra model call. That call gets
+`FACT_EXTRACTION_INSTRUCTIONS` and the latest user message, and returns the
+durable facts the user stated about themselves, their preferences or their
+world, as short third-person sentences ("User is vegetarian."). Each fact is
+stored with the configuration's `scope`, so the next turn finds it. Questions
+and small talk yield nothing. The extraction uses `extractionModel`, or the
+wrapped model itself when that is omitted, called directly rather than through
+the middleware.
+
+What is never saved: the model's replies, its reasoning, streamed output,
+earlier turns, and the memories injected into the prompt. A fact that matches
+a memory retrieved for the same turn, after normalising case, spacing and final
+punctuation, is skipped.
+
+The extraction runs while the model answers. The facts are written to GoodMem
+only once the model call has succeeded, so a failed or aborted turn stores
+nothing. In a multi-step tool loop, it runs once per user turn, not once per
+step. The save is bounded by `timeoutMs` and follows your abort signal.
+
+The outcome is on `providerMetadata.goodmem`:
+
+- `saved: { facts, memoryIds, duplicates, usage }`, where `usage` is the
+  extraction call's token count, so the extra cost is visible;
+- or `saveError: { stage, message, facts?, memoryIds? }`. A failed extraction or
+  save never fails the call. It is reported there, in the logger, and, for
+  `generateText`, in the call's `warnings`. With `streamText` the outcome is
+  only known at the end, so it comes in the finish part's metadata and the log.
+
+`extractFacts: ({ text, signal }) => Promise<string[]>` replaces the model call
+with your own extraction. It cannot be combined with `extractionModel`.
+
+This differs from memory services that extract facts on their own servers with
+their own model. Here the extraction is an ordinary AI SDK call on the model
+you choose. It shows up in your usage and your telemetry like any other call,
+and its instructions are exported and can be replaced.
 
 ## Helpers
 
@@ -480,8 +542,8 @@ the post-teardown server listing to a file.
 
 | Suite | Count | Needs |
 | --- | --- | --- |
-| `tests/goodmem_test.ts` | 107 | Nothing. The real GoodMem SDK over a fake `fetch` replaying responses captured from server v1.0.323, and the real `ai` package driving the tools and middleware with its mock language model. |
-| `tests/goodmem_live_test.ts` | 24 | `GOODMEM_API_KEY`, `GOODMEM_BASE_URL`, `GOODMEM_TEST_EMBEDDER_ID`; skips without them. |
+| `tests/goodmem_test.ts` | 125 | Nothing. The real GoodMem SDK over a fake `fetch` replaying responses captured from server v1.0.323, and the real `ai` package driving the tools and middleware with its mock language model. |
+| `tests/goodmem_live_test.ts` | 25 | `GOODMEM_API_KEY`, `GOODMEM_BASE_URL`, `GOODMEM_TEST_EMBEDDER_ID`; skips without them. |
 
 ## License
 
