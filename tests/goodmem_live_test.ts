@@ -10,6 +10,10 @@
  *   [GOODMEM_TEST_LATENCY_EMBEDDER_ID=...] [GOODMEM_TEARDOWN_REPORT=path.json] \
  *     npm run test:live
  *
+ * The middleware tests that expect real memories pass a generous
+ * `retrievalTimeoutMs`: the default 5 s is shorter than the hosted embedder
+ * behind the test space sometimes takes to embed one query.
+ *
  * Every space is created through the package itself (`space: { name,
  * embedderId }`) under a unique run id. One temporary embedder with an
  * unreachable endpoint is created with the SDK to produce a real
@@ -37,6 +41,7 @@ import {
   GoodMemIndexingError,
   GoodMemIngestionError,
   goodmemTools,
+  RETRIEVAL_FAILED_CODE,
   retrieveMemories,
   searchMemories,
   withGoodmem,
@@ -465,10 +470,13 @@ describe('live', { skip }, () => {
       assert.deepEqual(out.results, []);
       assert.equal(out.partial, false);
     });
+    const emptyMiddleware = { ...empty, retrievalTimeoutMs: 90_000 };
+    await generateText({ model: withGoodmem(scriptedModel(() => textResult('ok')), emptyMiddleware), prompt: 'warm up the space lookup' });
     await measure('middleware', async (query) => {
       const model = scriptedModel(() => textResult('ok'));
-      await generateText({ model: withGoodmem(model, empty), prompt: query });
+      const result = await generateText({ model: withGoodmem(model, emptyMiddleware), prompt: query });
       assert.equal(systemText(model.doGenerateCalls[0].prompt), '', 'something was injected for an empty space');
+      assert.equal((result.providerMetadata?.goodmem as any).partial, false);
     });
   });
 
@@ -478,7 +486,8 @@ describe('live', { skip }, () => {
     const model = scriptedModel(() => textResult('answer'));
     const messages = [{ role: 'user' as const, content: `What is the live text canary ${TEXT_CANARY}?` }];
     const before = JSON.stringify(messages);
-    const result = await generateText({ model: withGoodmem(model, mainConfig), system: 'Answer briefly.', messages });
+    const patient = { ...mainConfig, retrievalTimeoutMs: 90_000 };
+    const result = await generateText({ model: withGoodmem(model, patient), system: 'Answer briefly.', messages });
     const injected = systemText(model.doGenerateCalls[0].prompt);
     assert.match(injected, /^Answer briefly\.\n\nRelevant memories from GoodMem, most relevant first:\n1\. /);
     assert.ok(injected.includes(TEXT_CANARY), 'the canary memory was not injected');
@@ -487,7 +496,7 @@ describe('live', { skip }, () => {
     assert.ok(meta.memoryIds.includes(textMemoryId));
     assert.equal(JSON.stringify(messages), before);
 
-    const streamed = streamText({ model: withGoodmem(streamingModel(), mainConfig), prompt: `canary ${TEXT_CANARY}` });
+    const streamed = streamText({ model: withGoodmem(streamingModel(), patient), prompt: `canary ${TEXT_CANARY}` });
     assert.equal(await streamed.text, 'ok');
     assert.ok(((await streamed.providerMetadata)?.goodmem as any).memoryIds.includes(textMemoryId));
   });
@@ -541,7 +550,7 @@ describe('live', { skip }, () => {
 
   // ------------------------------------------------ dead connection, timeout --
 
-  it('a dead connection throws from helpers and middleware, and is a tool error for tools', async () => {
+  it('a dead connection: helpers throw, tools report a tool error, the middleware carries on flagged unless told not to', async () => {
     const closed = await new Promise<number>((resolve) => {
       const server = createServer();
       server.listen(0, '127.0.0.1', () => {
@@ -559,9 +568,27 @@ describe('live', { skip }, () => {
     });
     assert.ok(Date.now() - started < 5000);
 
-    const model = scriptedModel(() => textResult('never'));
-    await assert.rejects(generateText({ model: withGoodmem(model, dead), prompt: 'hi' }), /could not reach the GoodMem server/);
-    assert.equal(model.doGenerateCalls.length, 0, 'the model was called with no memories');
+    // Default skipMemoryOnError: the call goes ahead, told memories may be missing, and is flagged.
+    const logs = new Logs();
+    const model = scriptedModel(() => textResult('answered without memories'));
+    const carried = await generateText({ model: withGoodmem(model, { ...dead, logger: logs }), prompt: 'What do you remember about me?' });
+    assert.equal(carried.text, 'answered without memories');
+    assert.match(systemText(model.doGenerateCalls[0].prompt), /retrieval failed for this request \(RETRIEVAL_FAILED\).*do not assume there are none/);
+    const meta = carried.providerMetadata?.goodmem as any;
+    assert.equal(meta.partial, true);
+    assert.equal(meta.resultCount, 0);
+    assert.equal(meta.statuses[0].code, RETRIEVAL_FAILED_CODE);
+    assert.match(meta.statuses[0].message, /could not reach the GoodMem server .*ECONNREFUSED/);
+    assert.ok(carried.warnings?.some((w: any) => /memory lookup failed/.test(w.message)));
+    assert.match(logs.lines[0], /skipMemoryOnError is on/);
+
+    // skipMemoryOnError: false restores failing the call.
+    const strict = scriptedModel(() => textResult('never'));
+    await assert.rejects(
+      generateText({ model: withGoodmem(strict, { ...dead, skipMemoryOnError: false }), prompt: 'hi' }),
+      /could not reach the GoodMem server/
+    );
+    assert.equal(strict.doGenerateCalls.length, 0, 'the model was called with no memories');
 
     const result = await generateText({
       model: scriptedModel(() => toolCall('searchMemories', { query: 'x' }), () => textResult('sorry')),
@@ -573,7 +600,7 @@ describe('live', { skip }, () => {
     assert.match(String(toolError?.error?.message), /could not reach the GoodMem server/);
   });
 
-  it('a server that accepts but never answers is cut off at timeoutMs', async () => {
+  it('a server that accepts but never answers: timeoutMs bounds helpers, retrievalTimeoutMs bounds the middleware', async () => {
     const sockets = new Set<Socket>();
     const silent: Server = createServer((socket) => {
       sockets.add(socket);
@@ -590,13 +617,96 @@ describe('live', { skip }, () => {
       });
       const elapsed = Date.now() - started;
       assert.ok(elapsed >= 450 && elapsed < 3000, `took ${elapsed} ms`);
-      const model = scriptedModel(() => textResult('never'));
-      await assert.rejects(generateText({ model: withGoodmem(model, hung), prompt: 'hi' }), /timed out after 500 ms/);
-      assert.equal(model.doGenerateCalls.length, 0);
+      // The middleware gives up after retrievalTimeoutMs and carries on, flagged.
+      const model = scriptedModel(() => textResult('ok'));
+      const t0 = Date.now();
+      const carried = await generateText({ model: withGoodmem(model, { ...hung, retrievalTimeoutMs: 700 }), prompt: 'hi' });
+      const waited = Date.now() - t0;
+      assert.ok(waited >= 650 && waited < 3000, `the middleware waited ${waited} ms`);
+      const meta = carried.providerMetadata?.goodmem as any;
+      assert.equal(meta.statuses[0].code, RETRIEVAL_FAILED_CODE);
+      assert.deepEqual(meta.statuses[0].details, { timedOut: true });
+      assert.match(meta.statuses[0].message, /timed out after 700 ms: .*raise retrievalTimeoutMs/);
+      assert.equal(model.doGenerateCalls.length, 1);
+
+      const strict = scriptedModel(() => textResult('never'));
+      await assert.rejects(
+        generateText({ model: withGoodmem(strict, { ...hung, skipMemoryOnError: false, retrievalTimeoutMs: 700 }), prompt: 'hi' }),
+        /timed out after 700 ms/
+      );
+      assert.equal(strict.doGenerateCalls.length, 0);
     } finally {
       for (const socket of sockets) socket.destroy();
       await new Promise<void>((resolve) => silent.close(() => resolve()));
     }
+  });
+
+  // ------------------------------------------- environment, availability --
+
+  it('falls back to GOODMEM_API_KEY and GOODMEM_BASE_URL end to end, and an explicit option wins', async () => {
+    // This suite runs with both variables set; none of these configs name a server or key.
+    const fromEnv = { spaceId: mainSpaceId, logger: new Logs() };
+    const found = await searchMemories(`live text canary ${TEXT_CANARY}`, fromEnv);
+    assert.ok(found.results.some((r) => r.memoryId === textMemoryId));
+
+    const model = scriptedModel(() => textResult('ok'));
+    await generateText({ model: withGoodmem(model, { ...fromEnv, retrievalTimeoutMs: 90_000 }), prompt: `canary ${TEXT_CANARY}` });
+    assert.ok(systemText(model.doGenerateCalls[0].prompt).includes(TEXT_CANARY));
+
+    const tool = goodmemTools(fromEnv).searchMemories as any;
+    const output = await tool.execute({ query: TEXT_CANARY }, { toolCallId: 'env', messages: [], context: {} });
+    assert.ok(output.results.length > 0);
+
+    const saved = process.env.GOODMEM_BASE_URL;
+    process.env.GOODMEM_BASE_URL = 'http://127.0.0.1:9';
+    try {
+      // Explicit baseUrl wins over a broken environment...
+      const explicit = await searchMemories(TEXT_CANARY, { ...fromEnv, baseUrl: BASE! });
+      assert.ok(explicit.results.length > 0);
+      // ...and the environment really is what an omitted baseUrl uses.
+      await assert.rejects(searchMemories(TEXT_CANARY, fromEnv), /could not reach the GoodMem server at http:\/\/127\.0\.0\.1:9 /);
+    } finally {
+      if (saved === undefined) delete process.env.GOODMEM_BASE_URL;
+      else process.env.GOODMEM_BASE_URL = saved;
+    }
+  });
+
+  it('a rejected API key (HTTP 401) still fails the middleware call with skipMemoryOnError on', async () => {
+    const badKey = config({ apiKey: 'gm_invalid_live_test_key', spaceId: mainSpaceId });
+    await assert.rejects(searchMemories('x', badKey), (e: any) => {
+      assert.equal(e.statusCode, 401);
+      assert.equal(e.isRetryable, false);
+      return true;
+    });
+    const logs = new Logs();
+    const model = scriptedModel(() => textResult('never'));
+    await assert.rejects(generateText({ model: withGoodmem(model, { ...badKey, logger: logs }), prompt: 'hi' }), (e: any) => {
+      assert.ok(GoodMemError.isInstance(e));
+      assert.equal(e.statusCode, 401);
+      assert.match(e.message, /GoodMem answered HTTP 401/);
+      return true;
+    });
+    assert.equal(model.doGenerateCalls.length, 0, 'the model was called although the key is wrong');
+    assert.deepEqual(logs.lines, []);
+  });
+
+  it('a lookup slower than retrievalTimeoutMs against the real server carries on, flagged', async () => {
+    const logs = new Logs();
+    const model = scriptedModel(() => textResult('ok'));
+    const started = Date.now();
+    // A space id, so the time limit falls on the retrieval request itself.
+    const result = await generateText({
+      model: withGoodmem(model, config({ spaceId: mainSpaceId, logger: logs, retrievalTimeoutMs: 1 } as GoodmemConfig)),
+      prompt: `live text canary ${TEXT_CANARY}`,
+    });
+    assert.ok(Date.now() - started < 3000);
+    const meta = result.providerMetadata?.goodmem as any;
+    assert.equal(meta.partial, true);
+    assert.equal(meta.statuses[0].code, RETRIEVAL_FAILED_CODE);
+    assert.deepEqual(meta.statuses[0].details, { timedOut: true });
+    assert.equal(model.doGenerateCalls.length, 1);
+    assert.ok(!systemText(model.doGenerateCalls[0].prompt).includes(TEXT_CANARY));
+    assert.match(logs.lines[0], /Searching GoodMem timed out after 1 ms: .*raise retrievalTimeoutMs/);
   });
 
   // --------------------------------------------------------------- secrets --
