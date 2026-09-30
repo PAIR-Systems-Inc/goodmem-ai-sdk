@@ -1,15 +1,15 @@
 {
-  "run": "aisdk-live-muo9dmnp-39375f",
+  "run": "aisdk-live-muoadfxh-9681f1",
   "serverVersion": "server-v1.0.323",
-  "checkedAt": "2026-09-30T15:27:41.190Z",
+  "checkedAt": "2026-09-30T15:56:25.838Z",
   "deleted": {
     "spaces": [
-      "01a0f2ed-1d28-71e3-a241-9a49315ea4eb",
-      "01a0f2ed-673f-745a-b285-8ea44487e543",
-      "01a0f2ed-6f3a-73f7-a390-09834eaae818"
+      "01a0f306-9c11-75a8-a9da-e41d142044c1",
+      "01a0f307-1d9d-719e-8bbe-c2913efc244b",
+      "01a0f307-21c0-75a7-801b-1a2eb55ac419"
     ],
     "embedders": [
-      "01a0f2ed-1d1c-7127-aca0-e9b3a3bb3d7d"
+      "01a0f306-9c0a-7661-82fe-d062b9f619fc"
     ]
   },
   "deleteFailures": [],

@@ -1,5 +1,5 @@
 # Build, README check against the built types, package type resolution
-# commit 08cea6c, 2026-09-30T15:26:55Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
+# commit 7bf6af4, 2026-09-30T15:54:46Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
 
 $ npm run build
 
@@ -26,16 +26,16 @@ CLI Target: es2022
 CLI Cleaning output folder
 CJS Build start
 ESM Build start
-ESM lib/index.mjs     48.09 KB
-ESM lib/index.mjs.map 114.11 KB
-ESM ⚡️ Build success in 9ms
-CJS lib/index.js     49.59 KB
-CJS lib/index.js.map 115.97 KB
-CJS ⚡️ Build success in 9ms
+ESM lib/index.mjs     56.47 KB
+ESM lib/index.mjs.map 135.55 KB
+ESM ⚡️ Build success in 11ms
+CJS lib/index.js     58.08 KB
+CJS lib/index.js.map 137.68 KB
+CJS ⚡️ Build success in 11ms
 DTS Build start
-DTS ⚡️ Build success in 866ms
-DTS lib/index.d.ts  23.34 KB
-DTS lib/index.d.mts 23.34 KB
+DTS ⚡️ Build success in 947ms
+DTS lib/index.d.ts  27.33 KB
+DTS lib/index.d.mts 27.33 KB
 exit=0
 
 $ npm run check:readme
@@ -43,8 +43,8 @@ $ npm run check:readme
 > @pairsystems/goodmem-ai-sdk@0.1.0 check:readme
 > node scripts/check-readme.mjs --against lib
 
-ok - 8 TypeScript example(s) type-check against lib
-ok - 88 inline identifier(s) found in lib/index.d.ts: BOOLEAN, GOODMEM_API_KEY, GOODMEM_BASE_URL, GoodMemConfigError, GoodMemError, GoodMemFilterError, GoodMemIndexingError, GoodMemIngestionError, MALFORMED_STREAM, NUMERIC, RETRIEVAL_FAILED, RETRIEVAL_FAILED_CODE, TEXT, UNKNOWN, addMemories, addMemory, ai, allOf, anyOf, apiKey, baseUrl, body, code, compare, console, content, contentEncoding, context, createdMemoryIds, data, embedderId, equals, escapeLiteral, failedIndex, failedMemoryIds, fetch, filter, filters, fromMapping, generateText, goodmem, import, isInstance, isRetryable, logger, memoryId, memoryIds, message, metadata, minScore, not, notEquals, oneOf, partial, pendingMemoryIds, position, processingStatus, providerMetadata, query, rawScore, rerankerId, resultCount, results, retrievalTimeoutMs, scope, score, scoreKind, searchMemories, signal, skipMemoryOnError, space, spaceId, spaceIds, statusCode, statuses, streamText, template, text, timedOut, timeoutMs, topK, totalResults, true, vector, waitForIndexing, warning, warnings, wrapLanguageModel
+ok - 9 TypeScript example(s) type-check against lib
+ok - 94 inline identifier(s) found in lib/index.d.ts: BOOLEAN, FACT_EXTRACTION_INSTRUCTIONS, GOODMEM_API_KEY, GOODMEM_BASE_URL, GoodMemConfigError, GoodMemError, GoodMemFilterError, GoodMemIndexingError, GoodMemIngestionError, MALFORMED_STREAM, NUMERIC, RETRIEVAL_FAILED, RETRIEVAL_FAILED_CODE, TEXT, UNKNOWN, addMemories, addMemory, ai, allOf, anyOf, apiKey, baseUrl, body, code, compare, console, content, contentEncoding, context, createdMemoryIds, data, embedderId, equals, escapeLiteral, extractFacts, extractionModel, failedIndex, failedMemoryIds, fetch, filter, filters, fromMapping, generateText, goodmem, import, isInstance, isRetryable, logger, memoryId, memoryIds, message, metadata, minScore, not, notEquals, oneOf, partial, pendingMemoryIds, position, processingStatus, providerMetadata, query, rawScore, rerankerId, resultCount, results, retrievalTimeoutMs, saveError, saved, scope, score, scoreKind, searchMemories, signal, skipMemoryOnError, space, spaceId, spaceIds, statusCode, statuses, streamText, template, text, timedOut, timeoutMs, topK, totalResults, true, usage, vector, waitForIndexing, warning, warnings, wrapLanguageModel
 ok - 2 found in the ai package types: require, zod
 ok - 3 found in the @pairsystems/goodmem types: EMBEDDER_FAILED, FEATURE_DISABLED, LLM_CAPABILITY_INFERRED
 ok - 3 allowlisted (not code): GOODMEM_TEST_EMBEDDER_ID, GOODMEM_TEST_LATENCY_EMBEDDER_ID, GOODMEM_TEST_RERANKER_ID
@@ -80,22 +80,22 @@ npm notice
 npm notice 📦  @pairsystems/goodmem-ai-sdk@0.1.0
 npm notice Tarball Contents
 npm notice 11.4kB LICENSE
-npm notice 22.7kB README.md
-npm notice 23.9kB lib/index.d.mts
-npm notice 23.9kB lib/index.d.ts
-npm notice 50.8kB lib/index.js
-npm notice 118.8kB lib/index.js.map
-npm notice 49.2kB lib/index.mjs
-npm notice 116.9kB lib/index.mjs.map
+npm notice 25.9kB README.md
+npm notice 28.0kB lib/index.d.mts
+npm notice 28.0kB lib/index.d.ts
+npm notice 59.5kB lib/index.js
+npm notice 141.0kB lib/index.js.map
+npm notice 57.8kB lib/index.mjs
+npm notice 138.8kB lib/index.mjs.map
 npm notice 2.1kB package.json
 npm notice Tarball Details
 npm notice name: @pairsystems/goodmem-ai-sdk
 npm notice version: 0.1.0
 npm notice filename: pairsystems-goodmem-ai-sdk-0.1.0.tgz
-npm notice package size: 112.1 kB
-npm notice unpacked size: 419.6 kB
-npm notice shasum: ac64faa0be81ddabcbe8c4622e7a38f49df7ed4a
-npm notice integrity: sha512-h2ozvhZDas6sJ[...]tCKuikPv3bvCg==
+npm notice package size: 130.0 kB
+npm notice unpacked size: 492.4 kB
+npm notice shasum: 63c49cf8596bd904dbc06096efcd0576e9c0e701
+npm notice integrity: sha512-t09g7MCRo6L7I[...]5NPudYn7S/qlA==
 npm notice total files: 9
 npm notice
 pairsystems-goodmem-ai-sdk-0.1.0.tgz
