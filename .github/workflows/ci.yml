@@ -89,8 +89,8 @@ jobs:
           npm init -y > /dev/null
           npm install "./$PKG" "ai@${AI_RANGE}" "zod@${ZOD_RANGE}" > /dev/null
           EXPECTED="addMemories filters goodmemTools retrieveMemories searchMemories withGoodmem"
-          node -e "const m = require('@pairsystems/goodmem-ai-sdk'); for (const k of process.argv[1].split(' ')) { if (!m[k]) throw new Error('require: missing ' + k); } console.log('require ok');" "$EXPECTED"
-          node --input-type=module -e "const m = await import('@pairsystems/goodmem-ai-sdk'); for (const k of process.argv[1].split(' ')) { if (!m[k]) throw new Error('import: missing ' + k); } console.log('import ok');" "$EXPECTED"
+          node -e "const m = require('@pairsystems/goodmem-vercel-ai-sdk'); for (const k of process.argv[1].split(' ')) { if (!m[k]) throw new Error('require: missing ' + k); } console.log('require ok');" "$EXPECTED"
+          node --input-type=module -e "const m = await import('@pairsystems/goodmem-vercel-ai-sdk'); for (const k of process.argv[1].split(' ')) { if (!m[k]) throw new Error('import: missing ' + k); } console.log('import ok');" "$EXPECTED"
           if tar -tzf "$PKG" | grep -vE '^package/(lib/|package\.json$|README\.md$|LICENSE$)'; then
             echo "The tarball ships files outside lib/."
             exit 1

@@ -1,4 +1,4 @@
-# Workflow checks, commit 948d88f, 2026-09-30T16:09:11Z
+# Workflow checks, commit e66dea5, 2026-10-01T13:25:48Z
 
 ## 1. Every run: step extracted from the YAML and checked with bash -n
 ok   bash -n  ci.yml / test / Install  -> ci__test__02.sh
@@ -63,5 +63,5 @@ src gate on bracket access in env.ts (want 1): exit=1
 src gate on a whole-environment dump in env.ts (want 1): exit=1
 
 ## 5. The live-skip step, run as CI runs it, on Node 20 and Node 24
-node v20.20.0: exit=0
+node v24.14.0: exit=0
 node v24.14.0: exit=0

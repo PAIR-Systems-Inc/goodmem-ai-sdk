@@ -10,7 +10,7 @@ name: Publish to npm
 # is stored. One-time setup on npmjs.com, in the package's settings under
 # "Trusted publishers":
 #   Provider:    GitHub Actions
-#   Repository:  PAIR-Systems-Inc/goodmem-ai-sdk
+#   Repository:  PAIR-Systems-Inc/goodmem-vercel-ai-sdk
 #   Workflow:    publish.yml
 #   Environment: npm
 
@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: npm
-      url: https://www.npmjs.com/package/@pairsystems/goodmem-ai-sdk
+      url: https://www.npmjs.com/package/@pairsystems/goodmem-vercel-ai-sdk
     permissions:
       id-token: write
       contents: read

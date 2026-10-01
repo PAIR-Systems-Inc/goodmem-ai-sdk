@@ -67,7 +67,7 @@ try {
           skipLibCheck: true,
           types: ['node'],
           typeRoots: [join(ROOT, 'node_modules', '@types')],
-          paths: { '@pairsystems/goodmem-ai-sdk': [target] },
+          paths: { '@pairsystems/goodmem-vercel-ai-sdk': [target] },
         },
         include: ['*.ts'],
       },
