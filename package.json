@@ -1,5 +1,5 @@
 {
-  "name": "@pairsystems/goodmem-ai-sdk",
+  "name": "@pairsystems/goodmem-vercel-ai-sdk",
   "description": "GoodMem memory for the Vercel AI SDK: model-facing tools, a retrieval middleware and developer helpers, built on the official @pairsystems/goodmem SDK.",
   "keywords": [
     "ai",
@@ -13,7 +13,7 @@
     "middleware",
     "llm"
   ],
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "commonjs",
   "scripts": {
     "check": "tsc --noEmit",
@@ -25,13 +25,13 @@
     "check:readme": "node scripts/check-readme.mjs --against lib",
     "capture-fixtures": "tsx scripts/capture-fixtures.ts"
   },
-  "homepage": "https://github.com/PAIR-Systems-Inc/goodmem-ai-sdk#readme",
+  "homepage": "https://github.com/PAIR-Systems-Inc/goodmem-vercel-ai-sdk#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PAIR-Systems-Inc/goodmem-ai-sdk.git"
+    "url": "git+https://github.com/PAIR-Systems-Inc/goodmem-vercel-ai-sdk.git"
   },
   "bugs": {
-    "url": "https://github.com/PAIR-Systems-Inc/goodmem-ai-sdk/issues"
+    "url": "https://github.com/PAIR-Systems-Inc/goodmem-vercel-ai-sdk/issues"
   },
   "license": "Apache-2.0",
   "engines": {

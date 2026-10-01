@@ -1,5 +1,5 @@
 /**
- * Live tests for @pairsystems/goodmem-ai-sdk, against a running GoodMem server.
+ * Live tests for @pairsystems/goodmem-vercel-ai-sdk, against a running GoodMem server.
  *
  * They skip entirely unless GOODMEM_API_KEY, GOODMEM_BASE_URL and
  * GOODMEM_TEST_EMBEDDER_ID are set -- which is also the check that no

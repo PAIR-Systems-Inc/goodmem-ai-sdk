@@ -8,7 +8,7 @@
  * duplicate copies of this package, where `instanceof` does not.
  */
 
-const MARKER = Symbol.for('pairsystems.goodmem-ai-sdk.error');
+const MARKER = Symbol.for('pairsystems.goodmem-vercel-ai-sdk.error');
 
 /** Options shared by every GoodMem error. */
 export interface GoodMemErrorOptions {

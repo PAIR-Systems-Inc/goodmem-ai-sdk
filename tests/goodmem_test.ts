@@ -1,5 +1,5 @@
 /**
- * Offline tests for @pairsystems/goodmem-ai-sdk.
+ * Offline tests for @pairsystems/goodmem-vercel-ai-sdk.
  *
  * These drive the real @pairsystems/goodmem SDK over a fake `fetch` that
  * replays bytes captured from a live GoodMem server (see

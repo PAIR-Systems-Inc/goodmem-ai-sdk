@@ -1,148 +1,173 @@
 # Live suite against http://localhost:8080 (TAP; key from the environment only)
-# commit 948d88f, 2026-09-30T16:06:22Z, node v20.20.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
+# commit e66dea5, 2026-10-01T13:22:10Z, node v24.14.0, ai 7.0.123, zod 4.6.5, @pairsystems/goodmem 0.1.9
 
 $ GOODMEM_BASE_URL=http://localhost:8080 GOODMEM_API_KEY=<redacted> GOODMEM_TEST_EMBEDDER_ID=019cfd94-2844-7117-85ca-1b9919758a26 GOODMEM_TEST_RERANKER_ID=019e6da0-8a5a-72b0-8656-04dddfb25762 GOODMEM_TEST_LATENCY_EMBEDDER_ID=019cfd1c-c033-7517-b7de-f73941a0464b GOODMEM_TEARDOWN_REPORT=audit/teardown-verification.json npx tsx --test --test-reporter=tap --test-concurrency=1 tests/goodmem_live_test.ts
 TAP version 13
-# \# GoodMem server-v1.0.323 at http://localhost:8080; run aisdk-live-muoas8yd-5f52e6; 14 spaces and 7 embedders before
+# \# GoodMem server-v1.0.323 at http://localhost:8080; run aisdk-live-mupkcxyw-19f032; 14 spaces and 7 embedders before
 # Subtest: live
     # Subtest: creates its space through the package, and an identical second config reuses it
     ok 1 - creates its space through the package, and an identical second config reuses it
       ---
-      duration_ms: 3433.212996
+      duration_ms: 23156.967744
+      type: 'test'
       ...
     # Subtest: refuses a same-named space with another embedder, and the original embedder stays in effect
     ok 2 - refuses a same-named space with another embedder, and the original embedder stays in effect
       ---
-      duration_ms: 6.505892
+      duration_ms: 7.663524
+      type: 'test'
       ...
     # Subtest: refuses a malformed embedder id with the server's field-level message, creating nothing
     ok 3 - refuses a malformed embedder id with the server's field-level message, creating nothing
       ---
-      duration_ms: 6.396314
+      duration_ms: 7.923207
+      type: 'test'
       ...
     # Subtest: an unknown space id is a clear 404 for searches and a typed ingestion error for writes
     ok 4 - an unknown space id is a clear 404 for searches and a typed ingestion error for writes
       ---
-      duration_ms: 3.98386
+      duration_ms: 4.122148
+      type: 'test'
       ...
     # Subtest: round-trips add and search through generateText tool calling
     ok 5 - round-trips add and search through generateText tool calling
       ---
-      duration_ms: 2421.533698
+      duration_ms: 38461.388316
+      type: 'test'
       ...
     # Subtest: decodes text content as text
     ok 6 - decodes text content as text
       ---
-      duration_ms: 1382.836965
+      duration_ms: 18658.30196
+      type: 'test'
       ...
     # Subtest: decodes PDF content as base64, byte-identical to what was uploaded
     ok 7 - decodes PDF content as base64, byte-identical to what was uploaded
       ---
-      duration_ms: 6907.727839
+      duration_ms: 415.312721
+      type: 'test'
       ...
     # Subtest: hits carry an oriented vector score, the raw score, ids and metadata
     ok 8 - hits carry an oriented vector score, the raw score, ids and metadata
       ---
-      duration_ms: 1877.393854
+      duration_ms: 13743.43603
+      type: 'test'
       ...
     # Subtest: reranked results are scored as reranker, unflipped
     ok 9 - reranked results are scored as reranker, unflipped
       ---
-      duration_ms: 3902.921093
+      duration_ms: 859.62406
+      type: 'test'
       ...
     # Subtest: a reranker that does not exist degrades the search but keeps its hits (Q4a)
     ok 10 - a reranker that does not exist degrades the search but keeps its hits (Q4a)
       ---
-      duration_ms: 2715.267679
+      duration_ms: 5002.264367
+      type: 'test'
       ...
-# (node:678818) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+# (node:1134658) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
 # (Use `node --trace-warnings ...` to show where the warning was created)
-# (node:678818) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- EMBEDDER_FAILED: Embedding failed: Failed to create inference client
+# (node:1134658) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem reported a problem during retrieval -- EMBEDDER_FAILED: Embedding failed: Failed to create inference client
     # Subtest: a failing embedder is reported through helpers, tools and middleware, never as "no memories"
     ok 11 - a failing embedder is reported through helpers, tools and middleware, never as "no memories"
       ---
-      duration_ms: 2044.969812
+      duration_ms: 2041.067355
+      type: 'test'
       ...
-# \# empty-space search (embedder 019cfd1c-c033-7517-b7de-f73941a0464b): [{"totalMs":345,"serverMs":345}]
-# \# empty-space middleware (embedder 019cfd1c-c033-7517-b7de-f73941a0464b): [{"totalMs":326,"serverMs":324}]
+# \# empty-space search (embedder 019cfd1c-c033-7517-b7de-f73941a0464b): [{"totalMs":314,"serverMs":313}]
+# \# empty-space middleware (embedder 019cfd1c-c033-7517-b7de-f73941a0464b): [{"totalMs":317,"serverMs":315}]
     # Subtest: an empty space answers in under a second with a single request: nothing polls
     ok 12 - an empty space answers in under a second with a single request: nothing polls
       ---
-      duration_ms: 1473.598017
+      duration_ms: 1412.076395
+      type: 'test'
       ...
     # Subtest: the middleware injects memories from a real space and reports them
     ok 13 - the middleware injects memories from a real space and reports them
       ---
-      duration_ms: 3942.901586
+      duration_ms: 21565.066518
+      type: 'test'
       ...
     # Subtest: retrieveMemories formats a context block from a real space, in result order
     ok 14 - retrieveMemories formats a context block from a real space, in result order
       ---
-      duration_ms: 502.223195
+      duration_ms: 2548.771572
+      type: 'test'
       ...
     # Subtest: scope and filters apply server-side, and an injection payload matches nothing
     ok 15 - scope and filters apply server-side, and an injection payload matches nothing
       ---
-      duration_ms: 4272.768745
+      duration_ms: 35715.470689
+      type: 'test'
       ...
     # Subtest: scope is written onto stored memories
     ok 16 - scope is written onto stored memories
       ---
-      duration_ms: 9.635899
+      duration_ms: 9.047768
+      type: 'test'
       ...
     # Subtest: a malformed raw filter surfaces the server's parse error
     ok 17 - a malformed raw filter surfaces the server's parse error
       ---
-      duration_ms: 4.587647
+      duration_ms: 3.777431
+      type: 'test'
       ...
-# (node:678818) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at http://127.0.0.1:42709 (ECONNREFUSED). Check baseUrl and that the server is running.
+# (node:1134658) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem failed: could not reach the GoodMem server at http://127.0.0.1:38127 (ECONNREFUSED). Check baseUrl and that the server is running.
     # Subtest: a dead connection: helpers throw, tools report a tool error, the middleware carries on flagged unless told not to
     ok 18 - a dead connection: helpers throw, tools report a tool error, the middleware carries on flagged unless told not to
       ---
-      duration_ms: 11.121542
+      duration_ms: 8.607939
+      type: 'test'
       ...
-# (node:678818) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem timed out after 700 ms: the GoodMem server at http://127.0.0.1:43975 did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
+# (node:1134658) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem timed out after 700 ms: the GoodMem server at http://127.0.0.1:35555 did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
     # Subtest: a server that accepts but never answers: timeoutMs bounds helpers, retrievalTimeoutMs bounds the middleware
     ok 19 - a server that accepts but never answers: timeoutMs bounds helpers, retrievalTimeoutMs bounds the middleware
       ---
-      duration_ms: 1905.79833
+      duration_ms: 1905.983411
+      type: 'test'
       ...
     # Subtest: falls back to GOODMEM_API_KEY and GOODMEM_BASE_URL end to end, and an explicit option wins
     ok 20 - falls back to GOODMEM_API_KEY and GOODMEM_BASE_URL end to end, and an explicit option wins
       ---
-      duration_ms: 21807.569233
+      duration_ms: 24310.499556
+      type: 'test'
       ...
     # Subtest: a rejected API key (HTTP 401) still fails the middleware call with skipMemoryOnError on
     ok 21 - a rejected API key (HTTP 401) still fails the middleware call with skipMemoryOnError on
       ---
-      duration_ms: 4.060746
+      duration_ms: 3.573722
+      type: 'test'
       ...
-# (node:678818) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem timed out after 1 ms: the GoodMem server at http://localhost:8080 did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
+# (node:1134658) Warning: AI SDK Warning (mock-provider / mock-model-id): [goodmem] GoodMem memory lookup failed, so this call went ahead without memories -- Searching GoodMem timed out after 1 ms: the GoodMem server at http://localhost:8080 did not answer in time. Check that the server is healthy, or raise retrievalTimeoutMs.
     # Subtest: a lookup slower than retrievalTimeoutMs against the real server carries on, flagged
     ok 22 - a lookup slower than retrievalTimeoutMs against the real server carries on, flagged
       ---
-      duration_ms: 1.783869
+      duration_ms: 1.482366
+      type: 'test'
       ...
     # Subtest: automatic saving: facts from the extraction model land in GoodMem with the scope and come back next turn
     ok 23 - automatic saving: facts from the extraction model land in GoodMem with the scope and come back next turn
       ---
-      duration_ms: 13918.231325
+      duration_ms: 11855.157795
+      type: 'test'
       ...
     # Subtest: no credential appears in results, tools or errors
     ok 24 - no credential appears in results, tools or errors
       ---
-      duration_ms: 1081.484796
+      duration_ms: 896.857968
+      type: 'test'
       ...
-# \# teardown verification: {"spaces":[],"embedders":[]} left from aisdk-live-muoas8yd-5f52e6; server had 14 spaces / 7 embedders before the run and 14 / 7 after
+# \# teardown verification: {"spaces":[],"embedders":[]} left from aisdk-live-mupkcxyw-19f032; server had 14 spaces / 7 embedders before the run and 14 / 7 after
     # Subtest: teardown deletes everything the run created, verified by a fresh listing
     ok 25 - teardown deletes everything the run created, verified by a fresh listing
       ---
-      duration_ms: 65.481922
+      duration_ms: 40.164908
+      type: 'test'
       ...
     1..25
 ok 1 - live
   ---
-  duration_ms: 81816.123265
+  duration_ms: 208759.150556
   type: 'suite'
   ...
 1..1
@@ -153,5 +178,5 @@ ok 1 - live
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 81995.236169
+# duration_ms 208913.353563
 exit=0

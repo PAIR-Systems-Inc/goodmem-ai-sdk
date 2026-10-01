@@ -1,4 +1,4 @@
-# @pairsystems/goodmem-ai-sdk
+# @pairsystems/goodmem-vercel-ai-sdk
 
 [GoodMem](https://docs.goodmem.ai) memory for the [Vercel AI SDK](https://ai-sdk.dev):
 tools a model can call, a middleware that gives every call relevant memories,
@@ -12,15 +12,15 @@ and **7**, and Node **20** and later. See [Compatibility](#compatibility).
 ## Install
 
 ```bash
-npm install @pairsystems/goodmem-ai-sdk ai zod
+npm install @pairsystems/goodmem-vercel-ai-sdk ai zod
 ```
 
 With another package manager:
 
 ```bash
-pnpm add @pairsystems/goodmem-ai-sdk ai zod
-yarn add @pairsystems/goodmem-ai-sdk ai zod
-bun add @pairsystems/goodmem-ai-sdk ai zod
+pnpm add @pairsystems/goodmem-vercel-ai-sdk ai zod
+yarn add @pairsystems/goodmem-vercel-ai-sdk ai zod
+bun add @pairsystems/goodmem-vercel-ai-sdk ai zod
 ```
 
 `ai` and `zod` are peer dependencies, so the package uses your copies. All
@@ -63,7 +63,7 @@ Every entry point takes the same configuration object. With the two variables
 above set, a space is all it needs:
 
 ```ts
-import type { GoodmemConfig } from '@pairsystems/goodmem-ai-sdk';
+import type { GoodmemConfig } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 const goodmem: GoodmemConfig = { spaceId: '<space-uuid>' };
 
@@ -108,7 +108,7 @@ set; otherwise add `apiKey` and `baseUrl` to each configuration.
 ```ts
 import { openai } from '@ai-sdk/openai';
 import { generateText, stepCountIs } from 'ai';
-import { goodmemTools } from '@pairsystems/goodmem-ai-sdk';
+import { goodmemTools } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 const { text } = await generateText({
   model: openai('gpt-4o'),
@@ -132,7 +132,7 @@ configuration, never from the model. For read-only memory, pass only the
 search tool:
 
 ```ts
-import { goodmemTools } from '@pairsystems/goodmem-ai-sdk';
+import { goodmemTools } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 const { searchMemories } = goodmemTools({ spaceId: '<space-uuid>' });
 const tools = { searchMemories };
@@ -152,7 +152,7 @@ the prompt:
 ```ts
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
-import { withGoodmem } from '@pairsystems/goodmem-ai-sdk';
+import { withGoodmem } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 const model = withGoodmem(openai('gpt-4o'), {
   spaceId: '<space-uuid>',
@@ -184,7 +184,7 @@ most relevant first". The middleware takes the shared configuration plus:
 
 ```ts
 import { openai } from '@ai-sdk/openai';
-import { withGoodmem, type RetrieveMemoriesResult } from '@pairsystems/goodmem-ai-sdk';
+import { withGoodmem, type RetrieveMemoriesResult } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 const model = withGoodmem(openai('gpt-4o'), {
   spaceId: '<space-uuid>',
@@ -243,7 +243,7 @@ user tells it about themselves:
 
 ```ts
 import { openai } from '@ai-sdk/openai';
-import { withGoodmem } from '@pairsystems/goodmem-ai-sdk';
+import { withGoodmem } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 const model = withGoodmem(openai('gpt-4o'), {
   spaceId: '<space-uuid>',
@@ -297,7 +297,7 @@ and its instructions are exported and can be replaced.
 For your own code, three functions take the same configuration:
 
 ```ts
-import { addMemories, retrieveMemories, searchMemories, type GoodmemConfig } from '@pairsystems/goodmem-ai-sdk';
+import { addMemories, retrieveMemories, searchMemories, type GoodmemConfig } from '@pairsystems/goodmem-vercel-ai-sdk';
 import { readFile } from 'node:fs/promises';
 
 const goodmem: GoodmemConfig = { spaceId: '<space-uuid>' };
@@ -356,7 +356,7 @@ For per-user or per-session memory, either give each user their own space
 (GoodMem enforces access per space) or share a space and set `scope`:
 
 ```ts
-import { goodmemTools } from '@pairsystems/goodmem-ai-sdk';
+import { goodmemTools } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 function toolsFor(userId: string) {
   return goodmemTools({
@@ -440,7 +440,7 @@ GoodMem filters are expressions evaluated server-side, not SQL. Build them
 with `filters`, so values are escaped the way the server accepts:
 
 ```ts
-import { filters, searchMemories } from '@pairsystems/goodmem-ai-sdk';
+import { filters, searchMemories } from '@pairsystems/goodmem-vercel-ai-sdk';
 
 const recentFromAcme = filters.allOf(
   filters.equals('tenant', "O'Brien & Co"),
